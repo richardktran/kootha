@@ -1,0 +1,15 @@
+syntax = "proto3";
+option go_package = "/gen";
+
+message User {
+    string id = 1;
+    string name = 2;
+}
+
+message CreateUserRequest {
+    string name = 1;
+}
+
+service UserService {
+    rpc CreateUser(CreateUserRequest) returns (User);
+}
