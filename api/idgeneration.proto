@@ -1,7 +1,7 @@
 syntax = "proto3";
 option go_package = "/gen";
 
-message IdGeneration {
+message IDGenerator {
     string id = 1;
     string entity = 2;
 }
@@ -11,8 +11,7 @@ message IdGenerationRequest {
 }
 
 message IdGenerationResponse {
-    string id = 1;
-    string entity = 2;
+    IDGenerator idGenerator = 1;
 }
 
 service IdGenerationService {

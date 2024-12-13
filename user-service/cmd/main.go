@@ -11,6 +11,7 @@ import (
 	"github.com/richardktran/realtime-quiz/gen"
 	"github.com/richardktran/realtime-quiz/pkg/discovery"
 	"github.com/richardktran/realtime-quiz/pkg/discovery/consul"
+	idGenerationGateway "github.com/richardktran/realtime-quiz/user-service/internal/gateway/idgeneration/grpc"
 	grpcHandler "github.com/richardktran/realtime-quiz/user-service/internal/handler/grpc"
 	"github.com/richardktran/realtime-quiz/user-service/internal/repository/memory"
 	"github.com/richardktran/realtime-quiz/user-service/internal/service/user"
@@ -69,9 +70,11 @@ func main() {
 	}()
 	defer registry.Deregister(ctx, instanceId)
 
+	idGenerationGateway := idGenerationGateway.New(registry)
+
 	repo := memory.New()
 	svc := user.New(repo)
-	h := grpcHandler.New(svc)
+	h := grpcHandler.New(svc, idGenerationGateway)
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", port))
 	if err != nil {
@@ -85,5 +88,4 @@ func main() {
 	if err := server.Serve(listener); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
-
 }

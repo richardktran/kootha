@@ -5,6 +5,7 @@ import (
 
 	"github.com/richardktran/realtime-quiz/gen"
 	idgeneration "github.com/richardktran/realtime-quiz/id-generation-service/internal/service/idGeneration"
+	"github.com/richardktran/realtime-quiz/id-generation-service/pkg/model"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -27,5 +28,12 @@ func (h *Handler) GenerateId(ctx context.Context, req *gen.IdGenerationRequest) 
 
 	id := h.service.GenerateId(ctx, req.Entity)
 
-	return &gen.IdGenerationResponse{Id: id}, nil
+	generatedID := &model.IDGenerator{
+		ID:     id,
+		Entity: req.Entity,
+	}
+
+	return &gen.IdGenerationResponse{
+		IdGenerator: model.IDGeneratorToProto(generatedID),
+	}, nil
 }

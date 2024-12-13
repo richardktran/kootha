@@ -19,13 +19,13 @@ func New() *Repository {
 	}
 }
 
-func (r *Repository) CreateUser(_ context.Context, user *model.User) error {
+func (r *Repository) CreateUser(_ context.Context, user *model.User) (*model.User, error) {
 	r.Lock()
 	defer r.Unlock()
 
 	r.data[user.ID] = user
 
-	return nil
+	return user, nil
 }
 
 func (r *Repository) GetByID(_ context.Context, id string) (*model.User, error) {

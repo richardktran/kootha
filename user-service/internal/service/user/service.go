@@ -3,19 +3,16 @@ package user
 import (
 	"context"
 	"errors"
-	"fmt"
-	"time"
 
 	"github.com/richardktran/realtime-quiz/user-service/internal/repository"
 	"github.com/richardktran/realtime-quiz/user-service/pkg/model"
-	"golang.org/x/exp/rand"
 )
 
 // ErrorNotFound is returned when a requested record is not found.
 var ErrNotFound = errors.New("not found")
 
 type userRepository interface {
-	CreateUser(context.Context, *model.User) error
+	CreateUser(context.Context, *model.User) (*model.User, error)
 	GetByID(context.Context, string) (*model.User, error)
 }
 
@@ -29,16 +26,19 @@ func New(repo userRepository) *Service {
 	}
 }
 
-func (s *Service) CreateUser(ctx context.Context, name string) error {
-	// hard code for now
-	id := fmt.Sprintf("%d", rand.New(rand.NewSource(uint64(time.Now().UnixNano()))).Int())
-
+func (s *Service) CreateUser(ctx context.Context, id, name string) (*model.User, error) {
 	user := &model.User{
 		ID:   id,
 		Name: name,
 	}
 
-	return s.repo.CreateUser(ctx, user)
+	user, err := s.repo.CreateUser(ctx, user)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
 }
 
 func (s *Service) GetUser(ctx context.Context, id string) (*model.User, error) {
