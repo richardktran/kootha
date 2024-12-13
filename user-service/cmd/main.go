@@ -4,13 +4,19 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
+	"net"
 	"os"
 	"time"
 
-	httpHandler "github.com/richardktran/realtime-quiz/user-service/internal/handler/http"
-	"github.com/richardktran/realtime-quiz/user-service/pkg/discovery"
-	"github.com/richardktran/realtime-quiz/user-service/pkg/discovery/consul"
+	"github.com/richardktran/realtime-quiz/gen"
+	"github.com/richardktran/realtime-quiz/pkg/discovery"
+	"github.com/richardktran/realtime-quiz/pkg/discovery/consul"
+	idGenerationGateway "github.com/richardktran/realtime-quiz/user-service/internal/gateway/idgeneration/grpc"
+	grpcHandler "github.com/richardktran/realtime-quiz/user-service/internal/handler/grpc"
+	"github.com/richardktran/realtime-quiz/user-service/internal/repository/memory"
+	"github.com/richardktran/realtime-quiz/user-service/internal/service/user"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 	"gopkg.in/yaml.v3"
 )
 
@@ -64,10 +70,22 @@ func main() {
 	}()
 	defer registry.Deregister(ctx, instanceId)
 
-	h := httpHandler.New()
-	http.Handle("/user", http.HandlerFunc(h.GetUser))
+	idGenerationGateway := idGenerationGateway.New(registry)
 
-	if err := http.ListenAndServe(fmt.Sprintf(":%v", port), nil); err != nil {
-		panic(err)
+	repo := memory.New()
+	svc := user.New(repo)
+	h := grpcHandler.New(svc, idGenerationGateway)
+
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", port))
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+
+	server := grpc.NewServer()
+	reflection.Register(server)
+	gen.RegisterUserServiceServer(server, h)
+
+	if err := server.Serve(listener); err != nil {
+		log.Fatalf("failed to serve: %v", err)
 	}
 }

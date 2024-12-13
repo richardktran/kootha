@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	consul "github.com/hashicorp/consul/api"
-	"github.com/richardktran/realtime-quiz/user-service/pkg/discovery"
+	"github.com/richardktran/realtime-quiz/pkg/discovery"
 )
 
 type Registry struct {

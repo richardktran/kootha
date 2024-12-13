@@ -1,6 +1,7 @@
 package idgeneration
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -13,6 +14,6 @@ func New() *Service {
 	return &Service{}
 }
 
-func (s *Service) GenerateId(entity string) string {
+func (s *Service) GenerateId(ctx context.Context, entity string) string {
 	return fmt.Sprintf("%s-%d", entity, rand.New(rand.NewSource(uint64(time.Now().UnixNano()))).Int())
 }

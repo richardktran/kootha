@@ -1,0 +1,19 @@
+syntax = "proto3";
+option go_package = "/gen";
+
+message IDGenerator {
+    string id = 1;
+    string entity = 2;
+}
+
+message IdGenerationRequest {
+    string entity = 1;
+}
+
+message IdGenerationResponse {
+    IDGenerator idGenerator = 1;
+}
+
+service IdGenerationService {
+    rpc GenerateId(IdGenerationRequest) returns (IdGenerationResponse);
+}

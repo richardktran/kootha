@@ -4,14 +4,17 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
+	"net"
 	"os"
 	"time"
 
-	httpHandler "github.com/richardktran/realtime-quiz/id-generation-service/internal/handler/http"
+	"github.com/richardktran/realtime-quiz/gen"
+	grpcHandler "github.com/richardktran/realtime-quiz/id-generation-service/internal/handler/grpc"
 	idgeneration "github.com/richardktran/realtime-quiz/id-generation-service/internal/service/idGeneration"
-	"github.com/richardktran/realtime-quiz/user-service/pkg/discovery"
-	"github.com/richardktran/realtime-quiz/user-service/pkg/discovery/consul"
+	"github.com/richardktran/realtime-quiz/pkg/discovery"
+	"github.com/richardktran/realtime-quiz/pkg/discovery/consul"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 	"gopkg.in/yaml.v3"
 )
 
@@ -65,11 +68,27 @@ func main() {
 	}()
 	defer registry.Deregister(ctx, instanceId)
 
+	// =============== This section is for gRPC server ===============
 	svc := idgeneration.New()
-	h := httpHandler.New(svc)
-	http.Handle("/v1/id", http.HandlerFunc(h.GenerateId))
+	h := grpcHandler.New(svc)
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", port))
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+	grpcServer := grpc.NewServer()
+	reflection.Register(grpcServer)
+	gen.RegisterIdGenerationServiceServer(grpcServer, h)
 
-	if err := http.ListenAndServe(fmt.Sprintf(":%v", port), nil); err != nil {
+	if err := grpcServer.Serve(listener); err != nil {
 		panic(err)
 	}
+
+	// =============== This section is for HTTP handler ===============
+	// svc := idgeneration.New()
+	// h := httpHandler.New(svc)
+	// http.Handle("/v1/id", http.HandlerFunc(h.GenerateId))
+
+	// if err := http.ListenAndServe(fmt.Sprintf(":%v", port), nil); err != nil {
+	// 	panic(err)
+	// }
 }
