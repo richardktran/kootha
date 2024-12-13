@@ -14,7 +14,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const serviceName = "user"
+const serviceName = "user-service"
 
 type serviceConfig struct {
 	APIConfig apiConfig `yaml:"api"`

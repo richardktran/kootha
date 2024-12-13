@@ -82,7 +82,7 @@ func (r *Registry) ServiceAddresses(ctx context.Context, serviceName string) ([]
 func (r *Registry) ReportHealthyState(instanceID, serviceName string) error {
 	agent := r.client.Agent()
 
-	return agent.PassTTL(instanceID, "")
+	return agent.UpdateTTL(instanceID, "", "pass")
 }
 
 func splitHostPort(hostPort string) (string, string, error) {
