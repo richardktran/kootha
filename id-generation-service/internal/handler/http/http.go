@@ -18,10 +18,10 @@ func New(svc *idgeneration.Service) *Handler {
 }
 
 func (h *Handler) GenerateId(w http.ResponseWriter, r *http.Request) {
-
 	entity := r.URL.Query().Get("entity")
 
-	id := h.service.GenerateId(entity)
+	ctx := r.Context()
+	id := h.service.GenerateId(ctx, entity)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(fmt.Sprintf(`{"id": "%s"}`, id)))

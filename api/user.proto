@@ -10,6 +10,19 @@ message CreateUserRequest {
     string name = 1;
 }
 
+message CreateUserResponse {
+    User user = 1;
+}
+
+message GetUserByIdRequest {
+    string id = 1;
+}
+
+message GetUserByIdResponse {
+    User user = 1;
+}
+
 service UserService {
-    rpc CreateUser(CreateUserRequest) returns (User);
+    rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+    rpc GetUserById(GetUserByIdRequest) returns (GetUserByIdResponse);
 }
