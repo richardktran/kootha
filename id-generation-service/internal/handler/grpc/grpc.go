@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/richardktran/realtime-quiz/gen"
-	idgeneration "github.com/richardktran/realtime-quiz/id-generation-service/internal/service/idGeneration"
+	"github.com/richardktran/realtime-quiz/id-generation-service/internal/service/idgeneration"
 	"github.com/richardktran/realtime-quiz/id-generation-service/pkg/model"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
