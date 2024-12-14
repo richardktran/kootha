@@ -2,25 +2,29 @@ package grpc
 
 import (
 	"context"
-	"fmt"
-	"time"
 
 	"github.com/richardktran/realtime-quiz/gen"
+	idModel "github.com/richardktran/realtime-quiz/id-generation-service/pkg/model"
 	"github.com/richardktran/realtime-quiz/quiz-session-service/internal/service/quizsession"
 	"github.com/richardktran/realtime-quiz/quiz-session-service/pkg/model"
-	"golang.org/x/exp/rand"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-type Handler struct {
-	gen.UnimplementedQuizSessionServiceServer
-	service *quizsession.Service
+type idGenerationGateway interface {
+	GenerateId(context.Context, string) (*idModel.IDGenerator, error)
 }
 
-func New(svc *quizsession.Service) *Handler {
+type Handler struct {
+	gen.UnimplementedQuizSessionServiceServer
+	idGenerationGateway idGenerationGateway
+	service             *quizsession.Service
+}
+
+func New(svc *quizsession.Service, idGenerationGateway idGenerationGateway) *Handler {
 	return &Handler{
-		service: svc,
+		service:             svc,
+		idGenerationGateway: idGenerationGateway,
 	}
 }
 
@@ -29,10 +33,14 @@ func (h *Handler) CreateQuizSession(ctx context.Context, req *gen.CreateQuizSess
 		return nil, status.Errorf(codes.InvalidArgument, "nil request or empty name")
 	}
 
-	id := fmt.Sprintf("%d", rand.New(rand.NewSource(uint64(time.Now().UnixNano()))).Int())
+	generatedId, err := h.idGenerationGateway.GenerateId(ctx, "quiz-session")
+
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to generate id: %v", err)
+	}
 
 	newSession := &model.QuizSession{
-		ID:       id,
+		ID:       generatedId.ID,
 		Name:     req.GetName(),
 		Duration: int(req.GetDuration()),
 	}

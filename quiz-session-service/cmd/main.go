@@ -11,6 +11,7 @@ import (
 	"github.com/richardktran/realtime-quiz/gen"
 	"github.com/richardktran/realtime-quiz/pkg/discovery"
 	"github.com/richardktran/realtime-quiz/pkg/discovery/consul"
+	idGenerationGateway "github.com/richardktran/realtime-quiz/quiz-session-service/internal/gateway/idgeneration"
 	grpcHandler "github.com/richardktran/realtime-quiz/quiz-session-service/internal/handler/grpc"
 	"github.com/richardktran/realtime-quiz/quiz-session-service/internal/repository/memory"
 	"github.com/richardktran/realtime-quiz/quiz-session-service/internal/service/quizsession"
@@ -71,9 +72,10 @@ func main() {
 	}()
 	defer registry.Deregister(ctx, instanceId)
 
+	idGenerationGateway := idGenerationGateway.New(registry)
 	repo := memory.New()
 	svc := quizsession.New(repo)
-	h := grpcHandler.New(svc)
+	h := grpcHandler.New(svc, idGenerationGateway)
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", port))
 	if err != nil {
