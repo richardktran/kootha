@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	idgeneration "github.com/richardktran/realtime-quiz/id-generation-service/internal/service/idGeneration"
+	"github.com/richardktran/realtime-quiz/id-generation-service/internal/service/idgeneration"
 )
 
 type Handler struct {
