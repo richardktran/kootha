@@ -10,7 +10,7 @@ import (
 
 	"github.com/richardktran/realtime-quiz/gen"
 	grpcHandler "github.com/richardktran/realtime-quiz/id-generation-service/internal/handler/grpc"
-	idgeneration "github.com/richardktran/realtime-quiz/id-generation-service/internal/service/idgeneration"
+	"github.com/richardktran/realtime-quiz/id-generation-service/internal/service/idgeneration"
 	"github.com/richardktran/realtime-quiz/pkg/discovery"
 	"github.com/richardktran/realtime-quiz/pkg/discovery/consul"
 	"google.golang.org/grpc"
