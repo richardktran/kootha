@@ -1,0 +1,30 @@
+syntax = "proto3";
+option go_package = "/gen";
+
+message QuizSession {
+    string id = 1;
+    string name = 2;
+    int32 duration = 3;
+}
+
+message CreateQuizSessionRequest {
+    string name = 1;
+    int32 duration = 2;
+}
+
+message CreateQuizSessionResponse {
+    QuizSession quizSession = 1;
+}
+
+message GetQuizSessionByIdRequest {
+    string id = 1;
+}
+
+message GetQuizSessionByIdResponse {
+    QuizSession quizSession = 1;
+}
+
+service QuizSessionService {
+    rpc CreateQuizSession(CreateQuizSessionRequest) returns (CreateQuizSessionResponse);
+    rpc GetQuizSessionById(GetQuizSessionByIdRequest) returns (GetQuizSessionByIdResponse);
+}
