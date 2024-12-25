@@ -3,6 +3,7 @@ module github.com/richardktran/realtime-quiz
 go 1.22.4
 
 require (
+	github.com/confluentinc/confluent-kafka-go v1.9.2
 	github.com/hashicorp/consul/api v1.30.0
 	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63
 	google.golang.org/grpc v1.68.1
