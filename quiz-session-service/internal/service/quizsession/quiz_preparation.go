@@ -2,6 +2,7 @@ package quizsession
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"github.com/richardktran/realtime-quiz/quiz-session-service/internal/repository"
@@ -11,6 +12,16 @@ import (
 func (s *Service) CreateQuizSession(ctx context.Context, data *model.QuizSession) (*model.QuizSession, error) {
 	session, err := s.repo.CreateQuizSession(ctx, data)
 
+	if err != nil {
+		return nil, err
+	}
+
+	encodedSession, err := json.Marshal(session)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.producer.Produce(ctx, "quiz-session-created", encodedSession)
 	if err != nil {
 		return nil, err
 	}

@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
@@ -47,6 +48,8 @@ func (p *Producer) Produce(ctx context.Context, topic string, message []byte) er
 	if err != nil {
 		return err
 	}
+
+	fmt.Printf("Produced message to topic %s: %s\n", topic, message)
 
 	return nil
 }
