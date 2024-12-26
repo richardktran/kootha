@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/richardktran/realtime-quiz/pkg/topics"
 	"github.com/richardktran/realtime-quiz/quiz-session-service/internal/repository"
 	"github.com/richardktran/realtime-quiz/quiz-session-service/pkg/model"
 )
@@ -21,7 +22,7 @@ func (s *Service) CreateQuizSession(ctx context.Context, data *model.QuizSession
 		return nil, err
 	}
 
-	err = s.producer.Produce(ctx, "quiz-session-created", encodedSession)
+	err = s.producer.Produce(ctx, topics.QuizSessionCreated, encodedSession)
 	if err != nil {
 		return nil, err
 	}
