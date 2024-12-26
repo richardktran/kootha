@@ -13,25 +13,12 @@ type Consumer struct {
 	consumer *kafka.Consumer
 }
 
-// NewConsumer creates a new Kafka consumer.
-func NewConsumer() (*Consumer, error) {
-	c, err := kafka.NewConsumer(&kafka.ConfigMap{
-		"bootstrap.servers": "localhost:9092",
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &Consumer{
-		consumer: c,
-	}, nil
-}
-
 // NewConsumerGroup creates a new Kafka consumer group.
 func NewConsumerGroup(groupId string) (*Consumer, error) {
 	c, err := kafka.NewConsumer(&kafka.ConfigMap{
 		"bootstrap.servers": "localhost:9092",
 		"group.id":          groupId,
+		"auto.offset.reset": "earliest",
 	})
 	if err != nil {
 		return nil, err

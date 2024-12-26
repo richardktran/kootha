@@ -15,6 +15,10 @@ run-all:
 	@go run id-generation-service/cmd/*.go &
 	@go run user-service/cmd/*.go
 
+start-consumer-all:
+	@echo "Running all consumers..."
+	@go run quiz-session-service/cmd/session-created-consumer/*.go 
+
 protoc:
 	@echo "Generating protobuf files..."
 	@protoc -I=api --go_out=. --go-grpc_out=. api/*.proto
