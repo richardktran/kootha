@@ -11,11 +11,10 @@ import (
 )
 
 func (s *Service) CreateQuizSession(ctx context.Context, data *model.QuizSession) (*model.QuizSession, error) {
-	session, err := s.repo.CreateQuizSession(ctx, data)
 
-	if err != nil {
-		return nil, err
-	}
+	// Can be removed because we will store to the database by consumer
+	// session, err := s.repo.CreateQuizSession(ctx, data)
+	session := data
 
 	encodedSession, err := json.Marshal(session)
 	if err != nil {

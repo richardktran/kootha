@@ -10,6 +10,8 @@ import (
 
 	"github.com/richardktran/realtime-quiz/pkg/message-broker/kafka"
 	"github.com/richardktran/realtime-quiz/pkg/topics"
+	"github.com/richardktran/realtime-quiz/quiz-session-service/internal/repository/memory"
+	"github.com/richardktran/realtime-quiz/quiz-session-service/internal/workers"
 	"github.com/richardktran/realtime-quiz/quiz-session-service/pkg/model"
 )
 
@@ -38,6 +40,9 @@ func main() {
 		panic(err)
 	}
 
+	repo := memory.New()
+	worker := workers.NewQuizCreatedWorker(repo)
+
 	handler := func(message []byte, metadata map[string]interface{}) error {
 		select {
 		case <-ctx.Done():
@@ -49,6 +54,12 @@ func main() {
 		var session model.QuizSession
 		if err := json.Unmarshal(message, &session); err != nil {
 			log.Println("Unmarshal error: ", err.Error())
+		}
+
+		_, err := worker.StoreQuizSession(ctx, &session)
+
+		if err != nil {
+			log.Println("Error while storing the session: ", err.Error())
 		}
 
 		log.Printf("Consume the data: %s", string(message))

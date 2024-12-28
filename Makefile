@@ -9,6 +9,10 @@ run-user-service:
 	@echo "Running user service..."
 	@go run user-service/cmd/*.go
 
+run-session-created-consumer:
+	@echo "Running session created consumer..."
+	@go run quiz-session-service/cmd/session-created-consumer/*.go
+
 run-all:
 	@echo "Running all services..."
 	@go run quiz-session-service/cmd/*.go &
