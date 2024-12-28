@@ -14,7 +14,7 @@ import (
 	"github.com/richardktran/realtime-quiz/pkg/message-broker/kafka"
 	idGenerationGateway "github.com/richardktran/realtime-quiz/quiz-session-service/internal/gateway/idgeneration"
 	grpcHandler "github.com/richardktran/realtime-quiz/quiz-session-service/internal/handler/grpc"
-	"github.com/richardktran/realtime-quiz/quiz-session-service/internal/repository/memory"
+	"github.com/richardktran/realtime-quiz/quiz-session-service/internal/repository/postgres"
 	"github.com/richardktran/realtime-quiz/quiz-session-service/internal/service/quizsession"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -25,10 +25,19 @@ const serviceName = "quiz-session"
 
 type serviceConfig struct {
 	APIConfig apiConfig `yaml:"api"`
+	DBConfig  dbConfig  `yaml:"db"`
 }
 
 type apiConfig struct {
 	Port string `yaml:"port"`
+}
+
+type dbConfig struct {
+	Host     string `yaml:"host"`
+	Port     string `yaml:"port"`
+	User     string `yaml:"user"`
+	Password string `yaml:"password"`
+	DBName   string `yaml:"dbname"`
 }
 
 func main() {
@@ -81,7 +90,19 @@ func main() {
 	defer producer.Close()
 
 	idGenerationGateway := idGenerationGateway.New(registry)
-	repo := memory.New()
+
+	repo, err := postgres.New(postgres.Config{
+		Host:     cfg.DBConfig.Host,
+		Port:     cfg.DBConfig.Port,
+		User:     cfg.DBConfig.User,
+		Password: cfg.DBConfig.Password,
+		DBName:   cfg.DBConfig.DBName,
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
 	svc := quizsession.New(repo, producer)
 	h := grpcHandler.New(svc, idGenerationGateway)
 
