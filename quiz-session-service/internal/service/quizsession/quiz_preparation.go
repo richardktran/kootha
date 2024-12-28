@@ -2,15 +2,26 @@ package quizsession
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
+	"github.com/richardktran/realtime-quiz/pkg/topics"
 	"github.com/richardktran/realtime-quiz/quiz-session-service/internal/repository"
 	"github.com/richardktran/realtime-quiz/quiz-session-service/pkg/model"
 )
 
 func (s *Service) CreateQuizSession(ctx context.Context, data *model.QuizSession) (*model.QuizSession, error) {
-	session, err := s.repo.CreateQuizSession(ctx, data)
 
+	// Can be removed because we will store to the database by consumer
+	// session, err := s.repo.CreateQuizSession(ctx, data)
+	session := data
+
+	encodedSession, err := json.Marshal(session)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.producer.Produce(ctx, topics.QuizSessionCreated, encodedSession)
 	if err != nil {
 		return nil, err
 	}

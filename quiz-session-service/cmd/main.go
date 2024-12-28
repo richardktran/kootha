@@ -11,6 +11,7 @@ import (
 	"github.com/richardktran/realtime-quiz/gen"
 	"github.com/richardktran/realtime-quiz/pkg/discovery"
 	"github.com/richardktran/realtime-quiz/pkg/discovery/consul"
+	"github.com/richardktran/realtime-quiz/pkg/message-broker/kafka"
 	idGenerationGateway "github.com/richardktran/realtime-quiz/quiz-session-service/internal/gateway/idgeneration"
 	grpcHandler "github.com/richardktran/realtime-quiz/quiz-session-service/internal/handler/grpc"
 	"github.com/richardktran/realtime-quiz/quiz-session-service/internal/repository/memory"
@@ -72,9 +73,16 @@ func main() {
 	}()
 	defer registry.Deregister(ctx, instanceId)
 
+	// Kafka producer
+	producer, err := kafka.NewProducer()
+	if err != nil {
+		panic(err)
+	}
+	defer producer.Close()
+
 	idGenerationGateway := idGenerationGateway.New(registry)
 	repo := memory.New()
-	svc := quizsession.New(repo)
+	svc := quizsession.New(repo, producer)
 	h := grpcHandler.New(svc, idGenerationGateway)
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", port))

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	messagebroker "github.com/richardktran/realtime-quiz/pkg/message-broker"
 	"github.com/richardktran/realtime-quiz/quiz-session-service/pkg/model"
 )
 
@@ -15,11 +16,13 @@ type quizSessionRepository interface {
 }
 
 type Service struct {
-	repo quizSessionRepository
+	repo     quizSessionRepository
+	producer messagebroker.Producer
 }
 
-func New(repo quizSessionRepository) *Service {
+func New(repo quizSessionRepository, producer messagebroker.Producer) *Service {
 	return &Service{
-		repo: repo,
+		repo:     repo,
+		producer: producer,
 	}
 }

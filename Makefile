@@ -9,6 +9,28 @@ run-user-service:
 	@echo "Running user service..."
 	@go run user-service/cmd/*.go
 
+run-session-created-consumer:
+	@echo "Running session created consumer..."
+	@go run quiz-session-service/cmd/session-created-consumer/*.go
+
+run-all:
+	@echo "Running all services..."
+	@go run quiz-session-service/cmd/*.go &
+	@go run id-generation-service/cmd/*.go &
+	@go run user-service/cmd/*.go
+
+start-consumer-all:
+	@echo "Running all consumers..."
+	@go run quiz-session-service/cmd/session-created-consumer/*.go 
+
 protoc:
 	@echo "Generating protobuf files..."
 	@protoc -I=api --go_out=. --go-grpc_out=. api/*.proto
+
+start-consul:
+	@echo "Starting consul..."
+	@docker run -d -p 8500:8500 -p 8600:8600/udp --name=dev-consul hashicorp/consul:latest agent -server -ui -node=server-1 -bootstrap-expect=1 -client=0.0.0.0
+
+start-kafka:
+	@echo "Starting kafka..."
+	@docker compose -f docker/kafka/docker-compose.yml up -d
