@@ -1,0 +1,17 @@
+version: "3"
+services:
+  postgres_db:
+        image: postgres:13.5
+        container_name: PostgresDB
+        restart: always
+        environment:
+            - POSTGRES_USER=richardktran
+            - POSTGRES_PASSWORD=password
+        volumes:
+            - postgres_db:/var/lib/postgresql/data
+        ports:
+            - '5433:5432'
+
+volumes:
+    postgres_db:
+        driver: local

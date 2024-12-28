@@ -10,12 +10,25 @@ import (
 
 	"github.com/richardktran/realtime-quiz/pkg/message-broker/kafka"
 	"github.com/richardktran/realtime-quiz/pkg/topics"
-	"github.com/richardktran/realtime-quiz/quiz-session-service/internal/repository/memory"
+	"github.com/richardktran/realtime-quiz/quiz-session-service/internal/repository/postgres"
 	"github.com/richardktran/realtime-quiz/quiz-session-service/internal/workers"
 	"github.com/richardktran/realtime-quiz/quiz-session-service/pkg/model"
+	"gopkg.in/yaml.v3"
 )
 
 var groupId = "session-created"
+
+type serviceConfig struct {
+	DBConfig dbConfig `yaml:"db"`
+}
+
+type dbConfig struct {
+	Host     string `yaml:"host"`
+	Port     string `yaml:"port"`
+	User     string `yaml:"user"`
+	Password string `yaml:"password"`
+	DBName   string `yaml:"dbname"`
+}
 
 func main() {
 	fmt.Println("Start session created consumer...")
@@ -31,6 +44,19 @@ func main() {
 		cancel()
 	}()
 
+	f, err := os.Open("quiz-session-service/configs/base.yaml")
+
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	var cfg serviceConfig
+
+	if err := yaml.NewDecoder(f).Decode(&cfg); err != nil {
+		panic(err)
+	}
+
 	consumer, err := kafka.NewConsumerGroup(groupId)
 	topics := []string{
 		topics.QuizSessionCreated,
@@ -40,7 +66,18 @@ func main() {
 		panic(err)
 	}
 
-	repo := memory.New()
+	repo, err := postgres.New(postgres.Config{
+		Host:     cfg.DBConfig.Host,
+		Port:     cfg.DBConfig.Port,
+		User:     cfg.DBConfig.User,
+		Password: cfg.DBConfig.Password,
+		DBName:   cfg.DBConfig.DBName,
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
 	worker := workers.NewQuizCreatedWorker(repo)
 
 	handler := func(message []byte, metadata map[string]interface{}) error {

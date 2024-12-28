@@ -1,2 +1,8 @@
 api:
   port: 8084
+db:
+  host: localhost
+  port: 5433
+  user: richardktran
+  password: password
+  dbname: quiz_session
