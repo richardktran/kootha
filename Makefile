@@ -12,6 +12,9 @@ run-user-service:
 run-session-created-consumer:
 	@echo "Running session created consumer..."
 	@go run quiz-session-service/cmd/session-created-consumer/*.go
+run-user-joined-consumer:
+	@echo "Running user joined consumer..."
+	@go run quiz-session-service/cmd/user-joined-consumer/*.go
 
 run-all:
 	@echo "Running all services..."
@@ -22,6 +25,7 @@ run-all:
 start-consumer-all:
 	@echo "Running all consumers..."
 	@go run quiz-session-service/cmd/session-created-consumer/*.go 
+	@go run quiz-session-service/cmd/user-joined-consumer/*.go
 
 protoc:
 	@echo "Generating protobuf files..."

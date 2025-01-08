@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	QuizSessionService_CreateQuizSession_FullMethodName  = "/QuizSessionService/CreateQuizSession"
 	QuizSessionService_GetQuizSessionById_FullMethodName = "/QuizSessionService/GetQuizSessionById"
+	QuizSessionService_JoinQuiz_FullMethodName           = "/QuizSessionService/JoinQuiz"
 )
 
 // QuizSessionServiceClient is the client API for QuizSessionService service.
@@ -29,6 +30,7 @@ const (
 type QuizSessionServiceClient interface {
 	CreateQuizSession(ctx context.Context, in *CreateQuizSessionRequest, opts ...grpc.CallOption) (*CreateQuizSessionResponse, error)
 	GetQuizSessionById(ctx context.Context, in *GetQuizSessionByIdRequest, opts ...grpc.CallOption) (*GetQuizSessionByIdResponse, error)
+	JoinQuiz(ctx context.Context, in *JoinQuizRequest, opts ...grpc.CallOption) (*JoinQuizResponse, error)
 }
 
 type quizSessionServiceClient struct {
@@ -59,12 +61,23 @@ func (c *quizSessionServiceClient) GetQuizSessionById(ctx context.Context, in *G
 	return out, nil
 }
 
+func (c *quizSessionServiceClient) JoinQuiz(ctx context.Context, in *JoinQuizRequest, opts ...grpc.CallOption) (*JoinQuizResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(JoinQuizResponse)
+	err := c.cc.Invoke(ctx, QuizSessionService_JoinQuiz_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // QuizSessionServiceServer is the server API for QuizSessionService service.
 // All implementations must embed UnimplementedQuizSessionServiceServer
 // for forward compatibility.
 type QuizSessionServiceServer interface {
 	CreateQuizSession(context.Context, *CreateQuizSessionRequest) (*CreateQuizSessionResponse, error)
 	GetQuizSessionById(context.Context, *GetQuizSessionByIdRequest) (*GetQuizSessionByIdResponse, error)
+	JoinQuiz(context.Context, *JoinQuizRequest) (*JoinQuizResponse, error)
 	mustEmbedUnimplementedQuizSessionServiceServer()
 }
 
@@ -80,6 +93,9 @@ func (UnimplementedQuizSessionServiceServer) CreateQuizSession(context.Context, 
 }
 func (UnimplementedQuizSessionServiceServer) GetQuizSessionById(context.Context, *GetQuizSessionByIdRequest) (*GetQuizSessionByIdResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetQuizSessionById not implemented")
+}
+func (UnimplementedQuizSessionServiceServer) JoinQuiz(context.Context, *JoinQuizRequest) (*JoinQuizResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method JoinQuiz not implemented")
 }
 func (UnimplementedQuizSessionServiceServer) mustEmbedUnimplementedQuizSessionServiceServer() {}
 func (UnimplementedQuizSessionServiceServer) testEmbeddedByValue()                            {}
@@ -138,6 +154,24 @@ func _QuizSessionService_GetQuizSessionById_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _QuizSessionService_JoinQuiz_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(JoinQuizRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QuizSessionServiceServer).JoinQuiz(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: QuizSessionService_JoinQuiz_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QuizSessionServiceServer).JoinQuiz(ctx, req.(*JoinQuizRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // QuizSessionService_ServiceDesc is the grpc.ServiceDesc for QuizSessionService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -152,6 +186,10 @@ var QuizSessionService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetQuizSessionById",
 			Handler:    _QuizSessionService_GetQuizSessionById_Handler,
+		},
+		{
+			MethodName: "JoinQuiz",
+			Handler:    _QuizSessionService_JoinQuiz_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

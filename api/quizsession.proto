@@ -24,7 +24,17 @@ message GetQuizSessionByIdResponse {
     QuizSession quizSession = 1;
 }
 
+message JoinQuizRequest {
+    string quizSessionId = 1;
+    string userId = 2;
+}
+
+message JoinQuizResponse {
+    QuizSession quizSession = 1;
+}
+
 service QuizSessionService {
     rpc CreateQuizSession(CreateQuizSessionRequest) returns (CreateQuizSessionResponse);
     rpc GetQuizSessionById(GetQuizSessionByIdRequest) returns (GetQuizSessionByIdResponse);
+    rpc JoinQuiz(JoinQuizRequest) returns (JoinQuizResponse);
 }

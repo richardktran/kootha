@@ -16,7 +16,7 @@ func (s *Service) CreateQuizSession(ctx context.Context, data *model.QuizSession
 	// session, err := s.repo.CreateQuizSession(ctx, data)
 	session := data
 
-	encodedSession, err := json.Marshal(session)
+	encodedSession, err := s.encodeSession(session)
 	if err != nil {
 		return nil, err
 	}
@@ -37,4 +37,37 @@ func (s *Service) GetSessionById(ctx context.Context, id string) (*model.QuizSes
 	}
 
 	return session, err
+}
+
+func (s *Service) JoinQuiz(ctx context.Context, quizSessionId, userId string) (*model.QuizSession, error) {
+	session, err := s.GetSessionById(ctx, quizSessionId)
+	if err != nil {
+		return nil, err
+	}
+
+	data := map[string]interface{}{
+		"session": session,
+		"userId":  userId,
+	}
+
+	encodedSession, err := s.encodeSession(data)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.producer.Produce(ctx, topics.UserJoinedQuiz, encodedSession)
+	if err != nil {
+		return nil, err
+	}
+
+	return session, nil
+}
+
+func (s *Service) encodeSession(data any) ([]byte, error) {
+	encodedSession, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	return encodedSession, nil
 }

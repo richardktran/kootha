@@ -75,3 +75,19 @@ func (h *Handler) GetQuizSessionById(ctx context.Context, req *gen.GetQuizSessio
 		QuizSession: model.QuizSessionToProto(session),
 	}, nil
 }
+
+func (h *Handler) JoinQuiz(ctx context.Context, req *gen.JoinQuizRequest) (*gen.JoinQuizResponse, error) {
+	if req == nil || req.GetQuizSessionId() == "" || req.GetUserId() == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "nil request or empty session id or user id")
+	}
+
+	session, err := h.service.JoinQuiz(ctx, req.GetQuizSessionId(), req.GetUserId())
+
+	if err != nil && err == quizsession.ErrNotFound {
+		return nil, status.Errorf(codes.NotFound, "session not found")
+	}
+
+	return &gen.JoinQuizResponse{
+		QuizSession: model.QuizSessionToProto(session),
+	}, nil
+}
