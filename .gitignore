@@ -9,3 +9,5 @@
 *.test
 
 *.out
+
+postgres_db/
