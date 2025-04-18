@@ -1,5 +1,12 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { Room, WebSocketEvent } from '@/types/quiz';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
+import { Room, WebSocketEvent } from "@/types/quiz";
 
 interface WebSocketContextType {
   connect: () => void;
@@ -13,33 +20,38 @@ const WebSocketContext = createContext<WebSocketContextType | null>(null);
 
 export const useWebSocket = () => {
   const context = useContext(WebSocketContext);
+
   if (!context) {
-    throw new Error('useWebSocket must be used within a WebSocketProvider');
+    throw new Error("useWebSocket must be used within a WebSocketProvider");
   }
+
   return context;
 };
 
-export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [isConnected, setIsConnected] = useState(false);
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
   const ws = useRef<WebSocket | null>(null);
 
   const connect = () => {
     // In production, this would be your actual WebSocket server URL
-    ws.current = new WebSocket('ws://localhost:8080');
+    ws.current = new WebSocket("ws://localhost:8080");
 
     ws.current.onopen = () => {
       setIsConnected(true);
-      console.log('Connected to WebSocket');
+      console.log("Connected to WebSocket");
     };
 
     ws.current.onclose = () => {
       setIsConnected(false);
-      console.log('Disconnected from WebSocket');
+      console.log("Disconnected from WebSocket");
     };
 
     ws.current.onmessage = (event) => {
       const data: WebSocketEvent = JSON.parse(event.data);
+
       handleWebSocketMessage(data);
     };
   };
@@ -56,10 +68,10 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const handleWebSocketMessage = (event: WebSocketEvent) => {
     switch (event.type) {
-      case 'ROOM_JOINED':
+      case "ROOM_JOINED":
         setCurrentRoom(event.payload);
         break;
-      case 'LEADERBOARD_UPDATE':
+      case "LEADERBOARD_UPDATE":
         if (currentRoom) {
           setCurrentRoom({
             ...currentRoom,
@@ -67,11 +79,11 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           });
         }
         break;
-      case 'QUIZ_ENDED':
+      case "QUIZ_ENDED":
         if (currentRoom) {
           setCurrentRoom({
             ...currentRoom,
-            status: 'finished',
+            status: "finished",
             participants: event.payload.participants,
           });
         }
@@ -87,8 +99,10 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, []);
 
   return (
-    <WebSocketContext.Provider value={{ connect, disconnect, sendMessage, isConnected, currentRoom }}>
+    <WebSocketContext.Provider
+      value={{ connect, disconnect, sendMessage, isConnected, currentRoom }}
+    >
       {children}
     </WebSocketContext.Provider>
   );
-}; 
+};
