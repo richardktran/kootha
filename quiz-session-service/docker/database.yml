@@ -1,14 +1,14 @@
 version: "3"
 services:
-  postgres_db:
+    quiz_session_db:
         image: postgres:13.5
-        container_name: PostgresDB
+        container_name: quiz-session-db
         restart: always
         environment:
             - POSTGRES_USER=richardktran
             - POSTGRES_PASSWORD=password
         volumes:
-            - postgres_db:/var/lib/postgresql/data
+            - ./postgres_db:/var/lib/postgresql/data
         ports:
             - '5433:5432'
 

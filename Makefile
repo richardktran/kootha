@@ -1,6 +1,12 @@
+start-quiz-session-db:
+	@echo "Starting postgres..."
+	@docker compose -f quiz-session-service/docker/database.yml up -d
+
 run-quiz-session:
 	@echo "Running quiz session..."
+	@make start-quiz-session-db
 	@go run quiz-session-service/cmd/*.go
+	
 run-id-generation:
 	@echo "Running id generation service..."
 	@go run id-generation-service/cmd/*.go
@@ -38,3 +44,12 @@ start-consul:
 start-kafka:
 	@echo "Starting kafka..."
 	@docker compose -f docker/kafka/docker-compose.yml up -d
+
+
+create-migrate-quiz-session-db:
+	@echo "Creating migrate quiz session db..."
+	@migrate create -ext=sql -dir=quiz-session-service/internal/database/migrations -seq $1
+
+migrate-quiz-session-db:
+	@echo "Migrating quiz session db..."
+	@migrate -path=quiz-session-service/internal/database/migrations -database postgres://richardktran:password@localhost:5433/quiz_session?sslmode=disable up

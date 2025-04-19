@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS quiz_sessions (
+    id VARCHAR(255) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    duration INTEGER NOT NULL
+);
