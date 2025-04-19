@@ -30,7 +30,7 @@ run-all:
 
 start-consumer-all:
 	@echo "Running all consumers..."
-	@go run quiz-session-service/cmd/session-created-consumer/*.go 
+	@go run quiz-session-service/cmd/session-created-consumer/*.go &
 	@go run quiz-session-service/cmd/user-joined-consumer/*.go
 
 protoc:
@@ -52,4 +52,4 @@ create-migrate-quiz-session-db:
 
 migrate-quiz-session-db:
 	@echo "Migrating quiz session db..."
-	@migrate -path=quiz-session-service/internal/database/migrations -database postgres://richardktran:password@localhost:5433/quiz_session?sslmode=disable up
+	@migrate -path=quiz-session-service/internal/database/migrations -database "postgres://richardktran:password@localhost:5433/quiz_session?sslmode=disable" up

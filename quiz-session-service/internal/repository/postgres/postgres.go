@@ -59,3 +59,13 @@ func (r *Repository) CreateQuizSession(ctx context.Context, session *model.QuizS
 	}
 	return session, nil
 }
+
+func (r *Repository) JoinQuiz(ctx context.Context, sessionId, userId string) error {
+	_, err := r.db.ExecContext(ctx, "INSERT INTO quiz_participants (user_id, quiz_session_id) VALUES ($1, $2)", userId, sessionId)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
