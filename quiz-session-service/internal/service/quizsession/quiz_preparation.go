@@ -46,8 +46,8 @@ func (s *Service) JoinQuiz(ctx context.Context, quizSessionId, userId string) (*
 	}
 
 	data := map[string]interface{}{
-		"session": session,
-		"userId":  userId,
+		"sessionId": session.ID,
+		"userId":    userId,
 	}
 
 	encodedSession, err := s.encodeSession(data)
