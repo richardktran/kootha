@@ -5,15 +5,39 @@ import { useParams } from "next/navigation";
 
 import { useWebSocket } from "../../contexts/WebSocketContext";
 
-import { Question } from "@/types/quiz";
+import { Room } from "@/types/quiz";
 
 export default function QuizRoom() {
   const { roomId } = useParams();
-  const { currentRoom, sendMessage } = useWebSocket();
-  const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
+  const { currentRoom, currentQuestion, sendMessage, setCurrentRoom } =
+    useWebSocket();
   const [timeLeft, setTimeLeft] = useState<number>(15);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchRoom = async () => {
+      try {
+        const response = await fetch(
+          `http://localhost:8080/api/rooms?id=${roomId}`,
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch room");
+        }
+        let room: Room = await response.json();
+
+        setCurrentRoom(room);
+        setIsLoading(false);
+      } catch (error) {
+        console.error("Error fetching room:", error);
+        setIsLoading(false);
+      }
+    };
+
+    fetchRoom();
+  }, [roomId]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -65,16 +89,27 @@ export default function QuizRoom() {
   };
 
   const handleNextQuestion = () => {
+    setSelectedAnswer(null);
+    setShowLeaderboard(false);
+    setTimeLeft(15);
     sendMessage({
       type: "NEXT_QUESTION",
       payload: { roomId: roomId as string },
     });
   };
 
-  if (!currentRoom) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-2xl">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!currentRoom) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-2xl">Room not found</div>
       </div>
     );
   }
@@ -91,18 +126,46 @@ export default function QuizRoom() {
           </p>
         </div>
 
+        {/* Participants List */}
+        <div className="bg-white rounded-lg shadow-xl p-6 mb-6">
+          <h2 className="text-xl font-bold mb-4">Participants</h2>
+          <div className="space-y-2">
+            {currentRoom.participants.map((participant) => (
+              <div
+                key={participant.id}
+                className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
+              >
+                <div className="flex items-center">
+                  <div className="font-semibold">{participant.name}</div>
+                  {participant.id === currentRoom.hostId && (
+                    <span className="ml-2 text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                      Host
+                    </span>
+                  )}
+                </div>
+                <div className="text-gray-600">Score: {participant.score}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Quiz Content */}
-        {currentRoom.status === "waiting" &&
-          currentRoom.hostId === "current-user-id" && (
-            <div className="text-center">
+        {currentRoom.status === "waiting" && (
+          <div className="text-center">
+            {currentRoom.hostId === "current-user-id" ? (
               <button
                 className="bg-green-600 text-white px-8 py-4 rounded-lg text-xl font-bold hover:bg-green-700 transition"
                 onClick={handleStartQuiz}
               >
                 Start Quiz
               </button>
-            </div>
-          )}
+            ) : (
+              <div className="text-xl text-gray-700">
+                Waiting for host to start the quiz...
+              </div>
+            )}
+          </div>
+        )}
 
         {currentRoom.status === "in-progress" &&
           currentQuestion &&
@@ -126,11 +189,11 @@ export default function QuizRoom() {
                     <button
                       key={index}
                       className={`p-4 rounded-lg text-lg font-semibold transition
-                      ${
-                        selectedAnswer === index
-                          ? "bg-purple-600 text-white"
-                          : "bg-gray-100 hover:bg-gray-200 text-gray-800"
-                      }`}
+                    ${
+                      selectedAnswer === index
+                        ? "bg-purple-600 text-white"
+                        : "bg-gray-100 hover:bg-gray-200 text-gray-800"
+                    }`}
                       onClick={() => handleAnswerSelect(index)}
                     >
                       {option}

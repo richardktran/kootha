@@ -60,14 +60,19 @@ export default function Home() {
     setShowNameForm(false);
   };
 
-  const handleJoinRoom = () => {
+  const handleJoinRoom = async () => {
     if (!currentUser || !roomId) return;
-    connect();
-    sendMessage({
-      type: "JOIN_ROOM",
-      payload: { roomId, participantName: currentUser.name },
-    });
-    router.push(`/quiz/${roomId}`);
+    try {
+      await connect();
+      sendMessage({
+        type: "JOIN_ROOM",
+        payload: { roomId, userId: currentUser.id },
+      });
+      router.push(`/quiz/${roomId}`);
+    } catch (error) {
+      console.error("Failed to join room:", error);
+      setError("Failed to connect to the server. Please try again.");
+    }
   };
 
   const handleCreateRoom = async () => {
@@ -76,24 +81,29 @@ export default function Home() {
     setIsLoading(true);
     setError(null);
 
-    const response = await createRoom(roomName, currentUser.id);
+    try {
+      const response = await createRoom(roomName, currentUser.id);
 
-    if (response.error || !response.data) {
-      setError(response.error || "Failed to create room");
+      if (response.error || !response.data) {
+        setError(response.error || "Failed to create room");
+        setIsLoading(false);
+        return;
+      }
+
+      await connect();
+      sendMessage({
+        type: "JOIN_ROOM",
+        payload: {
+          roomId: response.data.roomId,
+          userId: currentUser.id,
+        },
+      });
+      router.push(`/quiz/${response.data.roomId}`);
+    } catch (error) {
+      console.error("Failed to create room:", error);
+      setError("Failed to connect to the server. Please try again.");
       setIsLoading(false);
-
-      return;
     }
-
-    connect();
-    sendMessage({
-      type: "JOIN_ROOM",
-      payload: {
-        roomId: response.data.roomId,
-        participantName: currentUser.name,
-      },
-    });
-    router.push(`/quiz/${response.data.roomId}`);
   };
 
   return (
