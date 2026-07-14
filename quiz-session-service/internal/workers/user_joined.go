@@ -7,11 +7,9 @@ type UserJoinedWorker struct {
 }
 
 func NewUserJoinedWorker(repo quizSessionRepository) *UserJoinedWorker {
-	return &UserJoinedWorker{
-		repo: repo,
-	}
+	return &UserJoinedWorker{repo: repo}
 }
 
-func (w *UserJoinedWorker) JoinQuiz(ctx context.Context, sessionId, userId string) error {
-	return w.repo.JoinQuiz(ctx, sessionId, userId)
+func (w *UserJoinedWorker) JoinQuiz(ctx context.Context, sessionId, userId, name string) error {
+	return w.repo.JoinQuiz(ctx, sessionId, userId, name)
 }

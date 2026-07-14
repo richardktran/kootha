@@ -2,7 +2,7 @@ export interface Question {
   id: string;
   question: string;
   options: string[];
-  correctAnswer: number;
+  correctAnswer?: number;
   timeLimit: number;
 }
 
@@ -22,22 +22,20 @@ export interface Participant {
   score: number;
 }
 
-export interface Answer {
-  participantId: string;
-  questionId: string;
+export interface AnswerPayload {
   selectedOption: number;
+  questionId: string;
   timeToAnswer: number;
 }
 
 export type WebSocketEvent =
-  | { type: "JOIN_ROOM"; payload: { roomId: string; userId: string } }
-  | { type: "ROOM_JOINED"; payload: Room }
-  | { type: "START_QUIZ"; payload: { roomId: string } }
-  | { type: "NEXT_QUESTION"; payload: { roomId: string } }
-  | { type: "QUESTION_TIMEOUT"; payload: { roomId: string } }
-  | { type: "SUBMIT_ANSWER"; payload: Answer }
-  | { type: "LEADERBOARD_UPDATE"; payload: { participants: Participant[] } }
-  | { type: "QUIZ_ENDED"; payload: { participants: Participant[] } }
-  | { type: "PARTICIPANT_JOINED"; payload: { participant: Participant } }
-  | { type: "PARTICIPANT_LEFT"; payload: { participantId: string } }
-  | { type: "QUESTION_STARTED"; payload: { questionIndex: number } };
+  | {
+      type: "JOIN_ROOM";
+      payload: { roomId: string; userId: string; name: string };
+    }
+  | { type: "START_QUIZ"; payload: { roomId: string; userId: string } }
+  | { type: "NEXT_QUESTION"; payload: { roomId: string; userId: string } }
+  | {
+      type: "SUBMIT_ANSWER";
+      payload: { roomId: string; userId?: string; answer: AnswerPayload };
+    };

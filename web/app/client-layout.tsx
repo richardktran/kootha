@@ -1,6 +1,7 @@
 "use client";
 
 import { Providers } from "./providers";
+import { UserProvider } from "./contexts/UserContext";
 import { WebSocketProvider } from "./contexts/WebSocketContext";
 
 export default function ClientLayout({
@@ -9,12 +10,14 @@ export default function ClientLayout({
   children: React.ReactNode;
 }) {
   return (
-    <WebSocketProvider>
-      <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
-        <div className="relative flex flex-col min-h-screen w-screen">
-          <main className="flex-grow w-full">{children}</main>
-        </div>
-      </Providers>
-    </WebSocketProvider>
+    <UserProvider>
+      <WebSocketProvider>
+        <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
+          <div className="relative flex flex-col min-h-screen w-screen">
+            <main className="flex-grow w-full">{children}</main>
+          </div>
+        </Providers>
+      </WebSocketProvider>
+    </UserProvider>
   );
 }

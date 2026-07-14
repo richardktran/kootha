@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: kootha-redis
+    ports:
+      - "6379:6379"
+    restart: always
+
+  quiz_bank_db:
+    image: postgres:13.5
+    container_name: quiz-bank-db
+    restart: always
+    environment:
+      POSTGRES_USER: richardktran
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: quiz_bank
+    ports:
+      - "5434:5432"
+    volumes:
+      - quiz_bank_pg:/var/lib/postgresql/data
+
+  user_db:
+    image: postgres:13.5
+    container_name: user-db
+    restart: always
+    environment:
+      POSTGRES_USER: richardktran
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: users
+    ports:
+      - "5435:5432"
+    volumes:
+      - user_pg:/var/lib/postgresql/data
+
+volumes:
+  quiz_bank_pg:
+  user_pg:

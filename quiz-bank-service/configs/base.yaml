@@ -1,0 +1,10 @@
+api:
+  port: 8085
+db:
+  host: localhost
+  port: 5434
+  user: richardktran
+  password: password
+  dbname: quiz_bank
+redis:
+  addr: localhost:6379

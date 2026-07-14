@@ -6,3 +6,5 @@ db:
   user: richardktran
   password: password
   dbname: quiz_session
+redis:
+  addr: localhost:6379

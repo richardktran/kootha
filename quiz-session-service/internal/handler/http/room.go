@@ -90,7 +90,7 @@ func (h *RoomHandler) JoinRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, err := h.service.JoinQuiz(r.Context(), req.RoomID, req.UserID)
+	session, err := h.service.JoinQuiz(r.Context(), req.RoomID, req.UserID, "")
 	if err != nil {
 		http.Error(w, "Failed to join room", http.StatusInternalServerError)
 		return

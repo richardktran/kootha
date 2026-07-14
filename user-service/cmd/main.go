@@ -13,7 +13,7 @@ import (
 	"github.com/richardktran/realtime-quiz/pkg/discovery/consul"
 	idGenerationGateway "github.com/richardktran/realtime-quiz/user-service/internal/gateway/idgeneration/grpc"
 	grpcHandler "github.com/richardktran/realtime-quiz/user-service/internal/handler/grpc"
-	"github.com/richardktran/realtime-quiz/user-service/internal/repository/memory"
+	"github.com/richardktran/realtime-quiz/user-service/internal/repository/postgres"
 	"github.com/richardktran/realtime-quiz/user-service/internal/service/user"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -24,10 +24,19 @@ const serviceName = "user-service"
 
 type serviceConfig struct {
 	APIConfig apiConfig `yaml:"api"`
+	DBConfig  dbConfig  `yaml:"db"`
 }
 
 type apiConfig struct {
 	Port string `yaml:"port"`
+}
+
+type dbConfig struct {
+	Host     string `yaml:"host"`
+	Port     string `yaml:"port"`
+	User     string `yaml:"user"`
+	Password string `yaml:"password"`
+	DBName   string `yaml:"dbname"`
 }
 
 func main() {
@@ -35,17 +44,14 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
 	defer f.Close()
 
 	var cfg serviceConfig
-
 	if err := yaml.NewDecoder(f).Decode(&cfg); err != nil {
 		panic(err)
 	}
 
 	port := cfg.APIConfig.Port
-
 	log.Printf("Starting the %s service with port %v...", serviceName, port)
 
 	registry, err := consul.NewRegistry("localhost:8500")
@@ -64,17 +70,27 @@ func main() {
 		for {
 			if err := registry.ReportHealthyState(instanceId, serviceName); err != nil {
 				log.Printf("Failed to report healthy state: %v", err)
-				time.Sleep(5 * time.Second)
 			}
+			time.Sleep(5 * time.Second)
 		}
 	}()
 	defer registry.Deregister(ctx, instanceId)
 
-	idGenerationGateway := idGenerationGateway.New(registry)
+	idGenGW := idGenerationGateway.New(registry)
 
-	repo := memory.New()
+	repo, err := postgres.New(postgres.Config{
+		Host:     cfg.DBConfig.Host,
+		Port:     cfg.DBConfig.Port,
+		User:     cfg.DBConfig.User,
+		Password: cfg.DBConfig.Password,
+		DBName:   cfg.DBConfig.DBName,
+	})
+	if err != nil {
+		panic(err)
+	}
+
 	svc := user.New(repo)
-	h := grpcHandler.New(svc, idGenerationGateway)
+	h := grpcHandler.New(svc, idGenGW)
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", port))
 	if err != nil {

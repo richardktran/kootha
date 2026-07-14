@@ -1,7 +1,4 @@
 package model
 
-type Participant struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Score int    `json:"score"`
-}
+// Deprecated: use QuizSession Participant. Kept for compatibility.
+type ParticipantLegacy = Participant

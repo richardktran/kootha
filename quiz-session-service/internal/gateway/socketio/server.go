@@ -22,6 +22,7 @@ type Server struct {
 type Room struct {
 	ID                   string
 	HostID               string
+	Name                 string
 	Participants         map[string]*model.Participant
 	Status               string
 	CurrentQuestionIndex int
@@ -29,9 +30,37 @@ type Room struct {
 	Connections          map[*websocket.Conn]string // conn -> participantID
 }
 
+// clientRoom is the JSON shape sent to the frontend.
+type clientRoom struct {
+	ID                   string               `json:"id"`
+	Name                 string               `json:"name"`
+	HostID               string               `json:"hostId"`
+	Participants         []*model.Participant `json:"participants"`
+	Status               string               `json:"status"`
+	CurrentQuestionIndex int                  `json:"currentQuestionIndex"`
+	Questions            []model.Question     `json:"questions"`
+}
+
 type Message struct {
 	Type    string                 `json:"type"`
 	Payload map[string]interface{} `json:"payload"`
+}
+
+func (r *Room) toClientRoom() clientRoom {
+	participants := make([]*model.Participant, 0, len(r.Participants))
+	for _, p := range r.Participants {
+		participants = append(participants, p)
+	}
+
+	return clientRoom{
+		ID:                   r.ID,
+		Name:                 r.Name,
+		HostID:               r.HostID,
+		Participants:         participants,
+		Status:               r.Status,
+		CurrentQuestionIndex: r.CurrentQuestionIndex,
+		Questions:            r.Questions,
+	}
 }
 
 func NewServer(service *quizsession.Service) *Server {
@@ -103,10 +132,15 @@ func (s *Server) handleJoinRoom(conn *websocket.Conn, data map[string]interface{
 		return
 	}
 
+	name, _ := data["name"].(string)
+	if name == "" {
+		name = userID
+	}
+
 	// Create participant
 	participant := &model.Participant{
 		ID:    userID,
-		Name:  data["name"].(string),
+		Name:  name,
 		Score: 0,
 	}
 
@@ -130,7 +164,7 @@ func (s *Server) handleJoinRoom(conn *websocket.Conn, data map[string]interface{
 	}
 
 	// Send room joined event to the participant
-	s.sendToConn(conn, "room_joined", room)
+	s.sendToConn(conn, "room_joined", room.toClientRoom())
 
 	// Broadcast participant joined event to room
 	s.broadcastToRoom(roomID, "participant_joined", map[string]interface{}{

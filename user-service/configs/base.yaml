@@ -1,2 +1,8 @@
 api:
   port: 8082
+db:
+  host: localhost
+  port: 5435
+  user: richardktran
+  password: password
+  dbname: users

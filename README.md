@@ -1,49 +1,69 @@
-# Setup Protobuf and gRPC
-## Install protobuf compiler
-For MacOS:
-```bash
-brew install protobuf
-```
-## Install protoc-gen-go
-```bash
-go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-```
+# Realtime Quiz (Kootha)
 
-## Update your PATH so that the protoc compiler can find the plugins:
-```bash
-export PATH="$PATH:$(go env GOPATH)/bin" >> ~/.zshrc
-```
-
-## Run Hashicorp Consul in Docker
-```bash
-docker run -d -p 8500:8500 -p 8600:8600/udp --name=dev-consul hashicorp/consul:latest agent -server -ui -node=server-1 -bootstrap-expect=1 -client=0.0.0.0
-```
-
-## Run Kafka in Docker
-Build the image and run the container
-```bash
-cd docker/kafka
-docker compose up -d
-```
-Access Kafka
-```bash
-docker exec -it kafka bash
-cd /opt/kafka/bin/
-```
-
-Create Topic
-```bash
-./kafka-topics.sh --bootstrap-server localhost:9092 --create --topic test 
-```
-
-Send a message to the topic (Open a new terminal)
-```bash
-./kafka-console-producer.sh --bootstrap-server localhost:9092 --topic test
-<Enter your message>
-```
-Consume messages from the topic (Open a new terminal)
-```bash
-./kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic test --from-beginning
+## Architecture
 
 ```
+Web ──REST──► API Gateway (:8080) ──gRPC──► User / QuizSession / (via Consul)
+Web ──WS────► Notification (:8086) ──gRPC──► QuizSession
+QuizSession ──► QuizBank, Redis, Kafka
+Leaderboard ──► Kafka answer-submitted → Redis leaderboard → ranking-updated
+Notification ──► Kafka events → Redis Pub/Sub → WS broadcast
+```
+
+## Prerequisites
+
+- Go 1.22+, Docker, [migrate](https://github.com/golang-migrate/migrate), Consul image
+- Frontend: Bun (or npm)
+- `protoc` + `protoc-gen-go` / `protoc-gen-go-grpc` for regenerating APIs
+
+## One-time setup
+
+```bash
+# 1. Infrastructure
+make start-consul
+make start-infra
+
+# 2. Create quiz_session DB if needed (first time only)
+docker exec -it quiz-session-db psql -U richardktran -c "CREATE DATABASE quiz_session;"
+
+# 3. Migrations
+make migrate-all
+
+# 4. (Optional) regenerate protos after editing api/*.proto
+make protoc
+```
+
+## Run the stack
+
+```bash
+# Terminal A — all Go services + consumers
+make run-all
+
+# Terminal B — Next.js
+cd web && bun install && bun run dev
+```
+
+Or start services individually: `make run-api-gateway`, `make run-notification`, etc.
+
+## Ports
+
+| Service | Port |
+|---------|------|
+| API Gateway (REST) | 8080 |
+| Notification (WS) | 8086 |
+| User gRPC | 8082 |
+| ID Generation gRPC | 8083 |
+| QuizSession gRPC | 8084 |
+| QuizBank gRPC | 8085 |
+| Redis | 6379 |
+| Quiz Session Postgres | 5433 |
+| Quiz Bank Postgres | 5434 |
+| Kafka | 9092 |
+| Consul | 8500 |
+| Web | 3000 |
+
+## Play smoke test
+
+1. Open two browsers at http://localhost:3000
+2. Enter names → Create room in one → Join with room ID in the other
+3. Host clicks **Start Quiz** → answer → host **Next Question** until finished

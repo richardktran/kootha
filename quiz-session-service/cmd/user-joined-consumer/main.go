@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/richardktran/realtime-quiz/pkg/events"
 	"github.com/richardktran/realtime-quiz/pkg/message-broker/kafka"
 	"github.com/richardktran/realtime-quiz/pkg/topics"
 	"github.com/richardktran/realtime-quiz/quiz-session-service/internal/repository/postgres"
@@ -29,11 +30,6 @@ type dbConfig struct {
 	DBName   string `yaml:"dbname"`
 }
 
-type userJoinedData struct {
-	SessionId string `json:"sessionId"`
-	UserId    string `json:"userId"`
-}
-
 func main() {
 	fmt.Println("Start user joined consumer...")
 	ctx, cancel := context.WithCancel(context.Background())
@@ -49,23 +45,17 @@ func main() {
 	}()
 
 	f, err := os.Open("quiz-session-service/configs/base.yaml")
-
 	if err != nil {
 		panic(err)
 	}
 	defer f.Close()
 
 	var cfg serviceConfig
-
 	if err := yaml.NewDecoder(f).Decode(&cfg); err != nil {
 		panic(err)
 	}
 
 	consumer, err := kafka.NewConsumerGroup(groupId)
-	topics := []string{
-		topics.UserJoinedQuiz,
-	}
-
 	if err != nil {
 		panic(err)
 	}
@@ -77,7 +67,6 @@ func main() {
 		Password: cfg.DBConfig.Password,
 		DBName:   cfg.DBConfig.DBName,
 	})
-
 	if err != nil {
 		panic(err)
 	}
@@ -87,32 +76,24 @@ func main() {
 	handler := func(message []byte, metadata map[string]interface{}) error {
 		select {
 		case <-ctx.Done():
-			log.Println("Handler context canceled")
 			return ctx.Err()
 		default:
 		}
 
-		log.Printf("Consume the data: %s", string(message))
-		log.Printf("Metadata: topic=%v, partition=%v, offset=%v\n", metadata["topic"], metadata["partition"], metadata["offset"])
-
-		var joinedData userJoinedData
+		var joinedData events.UserJoined
 		if err := json.Unmarshal(message, &joinedData); err != nil {
 			log.Println("Unmarshal error: ", err.Error())
+			return nil
 		}
 
-		err := worker.JoinQuiz(ctx, joinedData.SessionId, joinedData.UserId)
-		if err != nil {
+		if err := worker.JoinQuiz(ctx, joinedData.SessionID, joinedData.UserID, joinedData.Name); err != nil {
 			log.Println("Error while joining the quiz: ", err.Error())
 		}
 
 		return nil
 	}
 
-	fmt.Println("Start consume...")
-
-	if err := consumer.Consume(ctx, topics, handler); err != nil {
+	if err := consumer.Consume(ctx, []string{topics.UserJoinedQuiz}, handler); err != nil {
 		log.Fatalf("Error while consuming messages: %v", err)
 	}
-
-	log.Println("Consumer shut down gracefully.")
 }
