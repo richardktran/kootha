@@ -9,10 +9,12 @@ import (
 	"time"
 
 	"github.com/richardktran/realtime-quiz/gen"
+	"github.com/richardktran/realtime-quiz/pkg/cache/redis"
 	"github.com/richardktran/realtime-quiz/pkg/discovery"
 	"github.com/richardktran/realtime-quiz/pkg/discovery/consul"
 	"github.com/richardktran/realtime-quiz/pkg/message-broker/kafka"
 	idGenerationGateway "github.com/richardktran/realtime-quiz/quiz-session-service/internal/gateway/idgeneration"
+	quizBankGateway "github.com/richardktran/realtime-quiz/quiz-session-service/internal/gateway/quizbank"
 	grpcHandler "github.com/richardktran/realtime-quiz/quiz-session-service/internal/handler/grpc"
 	"github.com/richardktran/realtime-quiz/quiz-session-service/internal/repository/postgres"
 	"github.com/richardktran/realtime-quiz/quiz-session-service/internal/service/quizsession"
@@ -24,8 +26,9 @@ import (
 const serviceName = "quiz-session"
 
 type serviceConfig struct {
-	APIConfig apiConfig `yaml:"api"`
-	DBConfig  dbConfig  `yaml:"db"`
+	APIConfig   apiConfig   `yaml:"api"`
+	DBConfig    dbConfig    `yaml:"db"`
+	RedisConfig redisConfig `yaml:"redis"`
 }
 
 type apiConfig struct {
@@ -40,16 +43,18 @@ type dbConfig struct {
 	DBName   string `yaml:"dbname"`
 }
 
+type redisConfig struct {
+	Addr string `yaml:"addr"`
+}
+
 func main() {
 	f, err := os.Open("quiz-session-service/configs/base.yaml")
-
 	if err != nil {
 		panic(err)
 	}
 	defer f.Close()
 
 	var cfg serviceConfig
-
 	if err := yaml.NewDecoder(f).Decode(&cfg); err != nil {
 		panic(err)
 	}
@@ -57,13 +62,11 @@ func main() {
 	port := cfg.APIConfig.Port
 	log.Printf("Starting the %s service with port %v...", serviceName, port)
 
-	// Service registry
 	registry, err := consul.NewRegistry("localhost:8500")
 	if err != nil {
 		panic(err)
 	}
 
-	// Register the service
 	instanceId := discovery.GenerateInstanceID(serviceName)
 	ctx := context.Background()
 
@@ -71,7 +74,6 @@ func main() {
 		panic(err)
 	}
 
-	// Health check
 	go func() {
 		for {
 			if err := registry.ReportHealthyState(instanceId, serviceName); err != nil {
@@ -82,14 +84,24 @@ func main() {
 	}()
 	defer registry.Deregister(ctx, instanceId)
 
-	// Kafka producer
 	producer, err := kafka.NewProducer()
 	if err != nil {
 		panic(err)
 	}
 	defer producer.Close()
 
-	idGenerationGateway := idGenerationGateway.New(registry)
+	redisAddr := cfg.RedisConfig.Addr
+	if redisAddr == "" {
+		redisAddr = "localhost:6379"
+	}
+	cache, err := redis.New(redisAddr)
+	if err != nil {
+		panic(err)
+	}
+	defer cache.Close()
+
+	idGenGW := idGenerationGateway.New(registry)
+	quizBankGW := quizBankGateway.New(registry)
 
 	repo, err := postgres.New(postgres.Config{
 		Host:     cfg.DBConfig.Host,
@@ -98,24 +110,24 @@ func main() {
 		Password: cfg.DBConfig.Password,
 		DBName:   cfg.DBConfig.DBName,
 	})
-
 	if err != nil {
 		panic(err)
 	}
 
-	svc := quizsession.New(repo, producer)
-	h := grpcHandler.New(svc, idGenerationGateway)
+	svc := quizsession.New(repo, producer, cache, quizBankGW)
+	h := grpcHandler.New(svc, idGenGW)
+
+	server := grpc.NewServer()
+	reflection.Register(server)
+	gen.RegisterQuizSessionServiceServer(server, h)
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	server := grpc.NewServer()
-	reflection.Register(server)
-	gen.RegisterQuizSessionServiceServer(server, h)
-
+	log.Printf("%s gRPC listening on :%v", serviceName, port)
 	if err := server.Serve(listener); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+		log.Fatalf("failed to serve gRPC: %v", err)
 	}
 }

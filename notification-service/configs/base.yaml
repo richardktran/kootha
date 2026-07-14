@@ -1,0 +1,4 @@
+api:
+  port: 8086
+redis:
+  addr: localhost:6379

@@ -1,15 +1,42 @@
 syntax = "proto3";
 option go_package = "/gen";
 
+message Participant {
+    string id = 1;
+    string name = 2;
+    int32 score = 3;
+}
+
+message Question {
+    string id = 1;
+    string question = 2;
+    repeated string options = 3;
+    int32 correct_answer = 4;
+    int32 time_limit = 5;
+}
+
+message PublicQuestion {
+    string id = 1;
+    string question = 2;
+    repeated string options = 3;
+    int32 time_limit = 4;
+}
+
 message QuizSession {
     string id = 1;
     string name = 2;
     int32 duration = 3;
+    string host_id = 4;
+    string status = 5;
+    int32 current_index = 6;
+    repeated string question_ids = 7;
+    repeated Participant participants = 8;
 }
 
 message CreateQuizSessionRequest {
     string name = 1;
     int32 duration = 2;
+    string host_id = 3;
 }
 
 message CreateQuizSessionResponse {
@@ -27,14 +54,72 @@ message GetQuizSessionByIdResponse {
 message JoinQuizRequest {
     string quizSessionId = 1;
     string userId = 2;
+    string name = 3;
 }
 
 message JoinQuizResponse {
     QuizSession quizSession = 1;
 }
 
+message StartSessionRequest {
+    string sessionId = 1;
+    string userId = 2;
+    int32 questionCount = 3;
+}
+
+message StartSessionResponse {
+    QuizSession quizSession = 1;
+    PublicQuestion question = 2;
+}
+
+message SubmitAnswerRequest {
+    string sessionId = 1;
+    string userId = 2;
+    string questionId = 3;
+    int32 selectedOption = 4;
+    int32 timeToAnswer = 5;
+}
+
+message SubmitAnswerResponse {
+    bool accepted = 1;
+}
+
+message NextQuestionRequest {
+    string sessionId = 1;
+    string userId = 2;
+}
+
+message NextQuestionResponse {
+    bool finished = 1;
+    PublicQuestion question = 2;
+    int32 questionIndex = 3;
+}
+
+message EndSessionRequest {
+    string sessionId = 1;
+    string userId = 2;
+}
+
+message EndSessionResponse {
+    QuizSession quizSession = 1;
+}
+
+message ReassignHostRequest {
+    string sessionId = 1;
+    string leavingUserId = 2;
+}
+
+message ReassignHostResponse {
+    string hostId = 1;
+}
+
 service QuizSessionService {
     rpc CreateQuizSession(CreateQuizSessionRequest) returns (CreateQuizSessionResponse);
     rpc GetQuizSessionById(GetQuizSessionByIdRequest) returns (GetQuizSessionByIdResponse);
     rpc JoinQuiz(JoinQuizRequest) returns (JoinQuizResponse);
+    rpc StartSession(StartSessionRequest) returns (StartSessionResponse);
+    rpc SubmitAnswer(SubmitAnswerRequest) returns (SubmitAnswerResponse);
+    rpc NextQuestion(NextQuestionRequest) returns (NextQuestionResponse);
+    rpc EndSession(EndSessionRequest) returns (EndSessionResponse);
+    rpc ReassignHost(ReassignHostRequest) returns (ReassignHostResponse);
 }

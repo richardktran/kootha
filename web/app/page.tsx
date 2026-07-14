@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useWebSocket } from "./contexts/WebSocketContext";
+import { useUser } from "./contexts/UserContext";
 
 import { createUser, createRoom } from "@/services/api";
-import { User } from "@/types/api";
 
 export default function Home() {
   const [playerName, setPlayerName] = useState("");
@@ -16,28 +16,15 @@ export default function Home() {
   const [showCreateRoom, setShowCreateRoom] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [showNameForm, setShowNameForm] = useState(true);
 
   const router = useRouter();
   const { connect, sendMessage } = useWebSocket();
-
-  useEffect(() => {
-    // Check local storage for user data
-    const storedUser = localStorage.getItem("quizUser");
-
-    if (storedUser) {
-      const user = JSON.parse(storedUser);
-
-      setCurrentUser(user);
-      setShowNameForm(false);
-    }
-  }, []);
+  const { user, setUser } = useUser();
+  const showNameForm = !user;
 
   const handleNameSubmit = async () => {
     if (!playerName.trim()) {
       setError("Please enter your name");
-
       return;
     }
 
@@ -49,51 +36,62 @@ export default function Home() {
     if (response.error || !response.data) {
       setError(response.error || "Failed to create user");
       setIsLoading(false);
-
       return;
     }
 
-    // Store user data in local storage
-    localStorage.setItem("quizUser", JSON.stringify(response.data));
-    setCurrentUser(response.data);
+    setUser(response.data);
     setIsLoading(false);
-    setShowNameForm(false);
   };
 
-  const handleJoinRoom = () => {
-    if (!currentUser || !roomId) return;
-    connect();
-    sendMessage({
-      type: "JOIN_ROOM",
-      payload: { roomId, participantName: currentUser.name },
-    });
-    router.push(`/quiz/${roomId}`);
+  const handleJoinRoom = async () => {
+    if (!user || !roomId) return;
+    try {
+      await connect();
+      sendMessage({
+        type: "JOIN_ROOM",
+        payload: {
+          roomId,
+          userId: user.id,
+          name: user.name,
+        },
+      });
+      router.push(`/quiz/${roomId}`);
+    } catch (err) {
+      console.error("Failed to join room:", err);
+      setError("Failed to connect to the server. Please try again.");
+    }
   };
 
   const handleCreateRoom = async () => {
-    if (!currentUser || !roomName) return;
+    if (!user || !roomName) return;
 
     setIsLoading(true);
     setError(null);
 
-    const response = await createRoom(roomName, currentUser.id);
+    try {
+      const response = await createRoom(roomName, user.id);
 
-    if (response.error || !response.data) {
-      setError(response.error || "Failed to create room");
+      if (response.error || !response.data) {
+        setError(response.error || "Failed to create room");
+        setIsLoading(false);
+        return;
+      }
+
+      await connect();
+      sendMessage({
+        type: "JOIN_ROOM",
+        payload: {
+          roomId: response.data.roomId,
+          userId: user.id,
+          name: user.name,
+        },
+      });
+      router.push(`/quiz/${response.data.roomId}`);
+    } catch (err) {
+      console.error("Failed to create room:", err);
+      setError("Failed to connect to the server. Please try again.");
       setIsLoading(false);
-
-      return;
     }
-
-    connect();
-    sendMessage({
-      type: "JOIN_ROOM",
-      payload: {
-        roomId: response.data.roomId,
-        participantName: currentUser.name,
-      },
-    });
-    router.push(`/quiz/${response.data.roomId}`);
   };
 
   return (
@@ -135,6 +133,9 @@ export default function Home() {
             <h2 className="text-2xl font-bold text-center text-gray-800">
               Join or Create Room
             </h2>
+            <p className="text-center text-gray-600 text-sm">
+              Playing as <span className="font-semibold">{user?.name}</span>
+            </p>
 
             <div className="flex gap-4">
               <button

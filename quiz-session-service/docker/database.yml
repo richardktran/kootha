@@ -7,6 +7,7 @@ services:
         environment:
             - POSTGRES_USER=richardktran
             - POSTGRES_PASSWORD=password
+            - POSTGRES_DB=quiz_session
         volumes:
             - ./postgres_db:/var/lib/postgresql/data
         ports:

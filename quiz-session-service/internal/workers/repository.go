@@ -11,5 +11,5 @@ var ErrNotFound = errors.New("not found")
 
 type quizSessionRepository interface {
 	CreateQuizSession(context.Context, *model.QuizSession) (*model.QuizSession, error)
-	JoinQuiz(ctx context.Context, sessionId, userId string) error
+	JoinQuiz(ctx context.Context, sessionId, userId, name string) error
 }
