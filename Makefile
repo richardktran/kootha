@@ -1,4 +1,10 @@
-.PHONY: start-infra start-consul start-kafka start-quiz-session-db migrate-all protoc run-all start-consumer-all create-kafka-topics
+.PHONY: start-infra start-consul start-kafka start-quiz-session-db migrate-all protoc run-all stop-all start-consumer-all create-kafka-topics
+
+PID_DIR := .run
+PID_FILE := $(PID_DIR)/services.pids
+
+# Ports used by local Go services (api-gateway, microservices, notification WS)
+SERVICE_PORTS := 8080 8082 8083 8084 8085 8086
 
 start-infra:
 	@echo "Starting Redis, QuizBank DB, User DB..."
@@ -73,22 +79,68 @@ run-user-joined-consumer:
 	@go run quiz-session-service/cmd/user-joined-consumer/*.go
 
 start-consumer-all:
-	@echo "Running session consumers..."
-	@go run quiz-session-service/cmd/session-created-consumer/*.go &
-	@go run quiz-session-service/cmd/user-joined-consumer/*.go &
-	@go run leaderboard-service/cmd/main.go &
+	@$(MAKE) run-all
 
-# Starts all Go services (assumes infra + consul + migrations already done).
+# Start all Go services in the foreground process group.
+# Ctrl+C (or `make stop-all` from another terminal) stops everything.
+# PIDs are tracked in $(PID_FILE) so stop-all can clean up orphans.
 run-all:
-	@echo "Starting all services..."
-	@go run id-generation-service/cmd/*.go &
-	@go run user-service/cmd/*.go &
-	@go run quiz-bank-service/cmd/main.go &
-	@go run quiz-session-service/cmd/main.go &
-	@go run api-gateway/cmd/main.go &
-	@go run notification-service/cmd/main.go &
-	@go run leaderboard-service/cmd/main.go &
-	@go run quiz-session-service/cmd/session-created-consumer/*.go &
-	@go run quiz-session-service/cmd/user-joined-consumer/*.go &
-	@echo "Services launching in background. Frontend: cd web && bun run dev"
-	@wait
+	@mkdir -p $(PID_DIR)
+	@$(MAKE) stop-all >/dev/null 2>&1 || true
+	@echo "Starting all services (Ctrl+C or \`make stop-all\` to stop)..."
+	@set -e; \
+	pids=""; \
+	cleanup() { \
+		echo ""; \
+		echo "Stopping all services..."; \
+		for pid in $$pids; do \
+			kill $$pid 2>/dev/null || true; \
+			pkill -P $$pid 2>/dev/null || true; \
+		done; \
+		rm -f $(PID_FILE); \
+		$(MAKE) stop-all >/dev/null 2>&1 || true; \
+		echo "All services stopped."; \
+	}; \
+	trap cleanup INT TERM EXIT; \
+	go run id-generation-service/cmd/*.go & pids="$$pids $$!"; \
+	go run user-service/cmd/*.go & pids="$$pids $$!"; \
+	go run quiz-bank-service/cmd/main.go & pids="$$pids $$!"; \
+	go run quiz-session-service/cmd/main.go & pids="$$pids $$!"; \
+	go run api-gateway/cmd/main.go & pids="$$pids $$!"; \
+	go run notification-service/cmd/main.go & pids="$$pids $$!"; \
+	go run leaderboard-service/cmd/main.go & pids="$$pids $$!"; \
+	go run quiz-session-service/cmd/session-created-consumer/*.go & pids="$$pids $$!"; \
+	go run quiz-session-service/cmd/user-joined-consumer/*.go & pids="$$pids $$!"; \
+	echo $$pids > $(PID_FILE); \
+	echo "PIDs: $$pids"; \
+	echo "Frontend: cd web && bun run dev"; \
+	wait
+
+# Kill every local Go service started by run-all (and any orphans).
+stop-all:
+	@echo "Stopping all Kootha Go services..."
+	@if [ -f $(PID_FILE) ]; then \
+		for pid in $$(cat $(PID_FILE)); do \
+			kill $$pid 2>/dev/null || true; \
+			pkill -P $$pid 2>/dev/null || true; \
+		done; \
+		rm -f $(PID_FILE); \
+	fi
+	@pkill -f 'id-generation-service/cmd' 2>/dev/null || true
+	@pkill -f 'user-service/cmd' 2>/dev/null || true
+	@pkill -f 'quiz-bank-service/cmd' 2>/dev/null || true
+	@pkill -f 'quiz-session-service/cmd' 2>/dev/null || true
+	@pkill -f 'api-gateway/cmd' 2>/dev/null || true
+	@pkill -f 'notification-service/cmd' 2>/dev/null || true
+	@pkill -f 'leaderboard-service/cmd' 2>/dev/null || true
+	@for port in $(SERVICE_PORTS); do \
+		pids=$$(lsof -tiTCP:$$port -sTCP:LISTEN 2>/dev/null || true); \
+		if [ -n "$$pids" ]; then \
+			echo "  freeing port $$port ($$pids)"; \
+			kill $$pids 2>/dev/null || true; \
+			sleep 0.2; \
+			kill -9 $$pids 2>/dev/null || true; \
+		fi; \
+	done
+	@rm -f $(PID_FILE)
+	@echo "All services stopped."

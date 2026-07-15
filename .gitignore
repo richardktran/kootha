@@ -22,3 +22,5 @@ postgres_db/
 
 .env.local
 
+.run/
+

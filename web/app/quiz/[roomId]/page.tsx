@@ -2,14 +2,57 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 
 import { useWebSocket } from "../../contexts/WebSocketContext";
 import { useUser } from "../../contexts/UserContext";
 
 import { Room } from "@/types/quiz";
+import {
+  ArenaShell,
+  BrandMark,
+  StatusPill,
+  GameButton,
+  TimerRing,
+  AnswerPad,
+  PlayerRoster,
+  Leaderboard,
+  FeedbackBanner,
+} from "@/components/game";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+
+function CopyRoomCode({ roomId }: { roomId: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(roomId);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      className="group inline-flex items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2 font-mono text-sm font-bold tracking-wide text-[var(--pulse-lime)] transition hover:bg-[var(--surface-strong)]"
+      title="Copy room code"
+    >
+      <span className="text-[10px] uppercase tracking-wider text-[var(--muted)]">
+        Code
+      </span>
+      {roomId}
+      <span className="text-[10px] uppercase text-[var(--muted)] group-hover:text-white">
+        {copied ? "Copied" : "Copy"}
+      </span>
+    </button>
+  );
+}
 
 export default function QuizRoom() {
   const { roomId } = useParams();
@@ -38,7 +81,6 @@ export default function QuizRoom() {
   const isHost = !!user && currentRoom?.hostId === user.id;
   const isRevealed = !!questionResult;
 
-  // Fetch room + rejoin via WS on mount / refresh
   useEffect(() => {
     if (!roomIdStr || !user) {
       setIsLoading(false);
@@ -97,7 +139,6 @@ export default function QuizRoom() {
     };
   }, [roomIdStr, user?.id]);
 
-  // Reset state when a new question arrives
   useEffect(() => {
     if (!currentQuestion) return;
     const limit = currentQuestion.timeLimit || 15;
@@ -110,7 +151,6 @@ export default function QuizRoom() {
     setQuestionResult(null);
   }, [currentQuestion?.id]);
 
-  // After reveal, show leaderboard shortly so players can see correct/incorrect first
   useEffect(() => {
     if (!questionResult) return;
     if (!submittedRef.current) {
@@ -187,258 +227,258 @@ export default function QuizRoom() {
     router.push("/");
   };
 
-  const optionClassName = (index: number) => {
-    if (isRevealed && questionResult) {
-      const isCorrect = index === questionResult.correctAnswer;
-      const isSelected = selectedAnswer === index;
-      if (isCorrect) {
-        return "bg-green-600 text-white ring-2 ring-green-300";
-      }
-      if (isSelected && !isCorrect) {
-        return "bg-red-500 text-white ring-2 ring-red-300";
-      }
-      return "bg-gray-100 text-gray-500 opacity-70";
-    }
-
-    return selectedAnswer === index
-      ? "bg-purple-600 text-white"
-      : "bg-gray-100 hover:bg-gray-200 text-gray-800";
-  };
-
-  const answerFeedback = () => {
+  const feedbackKind = (): "correct" | "incorrect" | "timeout" | null => {
     if (!questionResult) return null;
-    if (selectedAnswer === null || selectedAnswer < 0) {
-      return {
-        text: "Time's up — no answer submitted",
-        className: "bg-amber-50 text-amber-800 border-amber-200",
-      };
-    }
-    if (selectedAnswer === questionResult.correctAnswer) {
-      return {
-        text: "Correct!",
-        className: "bg-green-50 text-green-800 border-green-200",
-      };
-    }
-    return {
-      text: "Incorrect",
-      className: "bg-red-50 text-red-800 border-red-200",
-    };
+    if (selectedAnswer === null || selectedAnswer < 0) return "timeout";
+    if (selectedAnswer === questionResult.correctAnswer) return "correct";
+    return "incorrect";
   };
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-2xl">Please enter your name on the home page first.</div>
-      </div>
+      <ArenaShell>
+        <div className="flex min-h-dvh flex-col items-center justify-center gap-6 px-4 text-center">
+          <BrandMark size="lg" />
+          <p className="max-w-sm text-[var(--muted)]">
+            Pick a name on the home screen before joining a room.
+          </p>
+          <GameButton onClick={handleBack}>Go home</GameButton>
+        </div>
+      </ArenaShell>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-2xl">Loading...</div>
-      </div>
+      <ArenaShell>
+        <div className="flex min-h-dvh flex-col items-center justify-center gap-4">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-[var(--pulse-lime)] border-t-transparent" />
+          <p className="text-display text-xl text-[var(--pulse-lime)]">
+            Loading arena…
+          </p>
+        </div>
+      </ArenaShell>
     );
   }
 
   if (!currentRoom) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-2xl">Room not found</div>
-      </div>
+      <ArenaShell>
+        <div className="flex min-h-dvh flex-col items-center justify-center gap-6 px-4 text-center">
+          <BrandMark size="md" />
+          <h1 className="text-display text-3xl">Room not found</h1>
+          <p className="text-[var(--muted)]">
+            That code doesn’t match an active room.
+          </p>
+          <GameButton onClick={handleBack}>Back home</GameButton>
+        </div>
+      </ArenaShell>
     );
   }
 
-  const feedback = answerFeedback();
+  const feedback = feedbackKind();
   const showQuestion =
     currentRoom.status === "in-progress" &&
     currentQuestion &&
     !showLeaderboard;
+  const participants = currentRoom.participants ?? [];
+  const questionNumber = (currentRoom.currentQuestionIndex ?? 0) + 1;
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-purple-500 to-pink-500 p-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-lg shadow-xl p-6 mb-6">
-          <div className="flex items-start justify-between gap-4 mb-2">
-            <div>
-              <h1 className="text-2xl font-bold mb-2">Room: {currentRoom.name}</h1>
-              <p className="text-gray-600">Room ID: {currentRoom.id}</p>
-              <p className="text-gray-600">
-                Players: {(currentRoom.participants ?? []).length}
-                {!isConnected && (
-                  <span className="ml-2 text-amber-600 text-sm">(reconnecting…)</span>
-                )}
-              </p>
+    <ArenaShell>
+      <main className="mx-auto min-h-dvh w-full max-w-3xl px-4 py-5 sm:px-6 sm:py-8">
+        {/* Top bar */}
+        <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <BrandMark size="sm" />
+            <h1 className="mt-1 truncate text-display text-2xl sm:text-3xl">
+              {currentRoom.name || "Quiz room"}
+            </h1>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <CopyRoomCode roomId={currentRoom.id} />
+              <StatusPill>
+                {participants.length} player{participants.length === 1 ? "" : "s"}
+              </StatusPill>
+              {!isConnected ? (
+                <StatusPill tone="amber">Reconnecting…</StatusPill>
+              ) : null}
+              {isHost ? <StatusPill tone="amber">You’re host</StatusPill> : null}
             </div>
-            <button
-              type="button"
-              onClick={handleBack}
-              className="shrink-0 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition"
+          </div>
+          <GameButton variant="ghost" onClick={handleBack}>
+            ← Leave
+          </GameButton>
+        </header>
+
+        <AnimatePresence mode="wait">
+          {/* LOBBY */}
+          {currentRoom.status === "waiting" ? (
+            <motion.div
+              key="lobby"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="space-y-5"
             >
-              ← Back
-            </button>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-xl p-6 mb-6">
-          <h2 className="text-xl font-bold mb-4">Participants</h2>
-          <div className="space-y-2">
-            {(currentRoom.participants ?? []).map((participant) => (
-              <div
-                key={participant.id}
-                className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
-              >
-                <div className="flex items-center">
-                  <div className="font-semibold">{participant.name}</div>
-                  {participant.id === currentRoom.hostId && (
-                    <span className="ml-2 text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
-                      Host
-                    </span>
-                  )}
-                  {participant.id === user.id && (
-                    <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                      You
-                    </span>
-                  )}
-                </div>
-                <div className="text-gray-600">Score: {participant.score}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {currentRoom.status === "waiting" && (
-          <div className="text-center">
-            {isHost ? (
-              <button
-                className="bg-green-600 text-white px-8 py-4 rounded-lg text-xl font-bold hover:bg-green-700 transition"
-                onClick={handleStartQuiz}
-              >
-                Start Quiz
-              </button>
-            ) : (
-              <div className="text-xl text-gray-700">
-                Waiting for host to start the quiz...
-              </div>
-            )}
-          </div>
-        )}
-
-        {showQuestion && (
-          <div className="bg-white rounded-lg shadow-xl p-6">
-            {!isRevealed && (
-              <div className="text-center mb-6">
-                <div className="text-4xl font-bold text-purple-600">
-                  {timeLeft}
-                </div>
-                <div className="text-gray-600">seconds remaining</div>
-              </div>
-            )}
-
-            {feedback && (
-              <div
-                className={`mb-6 text-center text-xl font-bold border rounded-lg py-3 ${feedback.className}`}
-              >
-                {feedback.text}
-              </div>
-            )}
-
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold mb-4">
-                {currentQuestion.question}
-              </h2>
-              <div className="grid grid-cols-2 gap-4">
-                {currentQuestion.options.map((option, index) => (
-                  <button
-                    key={index}
-                    disabled={hasSubmitted || isRevealed}
-                    className={`p-4 rounded-lg text-lg font-semibold transition disabled:cursor-default ${optionClassName(index)}`}
-                    onClick={() => handleAnswerSelect(index)}
-                  >
-                    {option}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {!hasSubmitted && !isRevealed && (
-              <button
-                className="w-full bg-purple-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-purple-700 transition disabled:opacity-50"
-                disabled={selectedAnswer === null}
-                onClick={() => submitAnswer(selectedAnswer)}
-              >
-                Submit Answer
-              </button>
-            )}
-
-            {hasSubmitted && !isRevealed && (
-              <div className="text-center text-gray-600 font-medium py-3">
-                Answer submitted — waiting for other players or the timer…
-              </div>
-            )}
-          </div>
-        )}
-
-        {(showLeaderboard || currentRoom.status === "finished") && (
-          <div className="bg-white rounded-lg shadow-xl p-6">
-            {feedback && currentRoom.status !== "finished" && (
-              <div
-                className={`mb-6 text-center text-lg font-bold border rounded-lg py-3 ${feedback.className}`}
-              >
-                {feedback.text}
-              </div>
-            )}
-
-            <h2 className="text-2xl font-bold mb-6">
-              {currentRoom.status === "finished" ? "Final Results" : "Leaderboard"}
-            </h2>
-            <div className="space-y-4">
-              {[...(currentRoom.participants ?? [])]
-                .sort((a, b) => b.score - a.score)
-                .map((participant, index) => (
-                  <div
-                    key={participant.id}
-                    className="flex items-center justify-between bg-gray-50 p-4 rounded-lg"
-                  >
-                    <div className="flex items-center">
-                      <div className="text-2xl font-bold text-gray-400 mr-4">
-                        #{index + 1}
-                      </div>
-                      <div className="font-semibold">{participant.name}</div>
-                    </div>
-                    <div className="text-xl font-bold text-purple-600">
-                      {participant.score}
-                    </div>
+              <div className="panel overflow-hidden p-6 sm:p-8">
+                <div className="mb-6 text-center">
+                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--pulse-lime)] text-display text-3xl text-[var(--arena-ink)] shadow-pop animate-float">
+                    ?
                   </div>
-                ))}
-            </div>
+                  <h2 className="text-display text-3xl text-[var(--pulse-lime)]">
+                    Lobby
+                  </h2>
+                  <p className="mt-2 text-[var(--muted)]">
+                    Share the room code. Start when everyone is ready.
+                  </p>
+                </div>
 
-            {isHost && currentRoom.status === "in-progress" && isRevealed && (
-              <button
-                className="mt-6 w-full bg-purple-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-purple-700 transition"
-                onClick={handleNextQuestion}
-              >
-                Next Question
-              </button>
-            )}
+                <PlayerRoster
+                  participants={participants}
+                  hostId={currentRoom.hostId}
+                  currentUserId={user.id}
+                />
 
-            {currentRoom.status === "finished" && (
-              <div className="mt-6 space-y-3">
-                <p className="text-center text-gray-600">
-                  Quiz finished — thanks for playing!
-                </p>
-                <button
-                  type="button"
-                  onClick={handleBack}
-                  className="w-full bg-purple-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-purple-700 transition"
-                >
-                  Back to Home
-                </button>
+                <div className="mt-8 text-center">
+                  {isHost ? (
+                    <GameButton
+                      variant="host"
+                      disabled={participants.length < 1}
+                      onClick={handleStartQuiz}
+                    >
+                      Start quiz
+                    </GameButton>
+                  ) : (
+                    <div className="inline-flex items-center gap-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-5 py-4">
+                      <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[var(--pulse-amber)]" />
+                      <span className="font-semibold text-[var(--muted)]">
+                        Waiting for host to start…
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
-        )}
-      </div>
-    </main>
+            </motion.div>
+          ) : null}
+
+          {/* QUESTION */}
+          {showQuestion ? (
+            <motion.div
+              key={`q-${currentQuestion.id}`}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              className="space-y-4"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <StatusPill tone="lime">Round {questionNumber}</StatusPill>
+                <PlayerRoster
+                  compact
+                  participants={participants}
+                  hostId={currentRoom.hostId}
+                  currentUserId={user.id}
+                />
+              </div>
+
+              <div className="panel p-5 sm:p-7">
+                {!isRevealed ? (
+                  <div className="mb-5">
+                    <TimerRing
+                      timeLeft={timeLeft}
+                      timeLimit={timeLimitRef.current}
+                    />
+                  </div>
+                ) : null}
+
+                {feedback ? (
+                  <div className="mb-5">
+                    <FeedbackBanner kind={feedback} />
+                  </div>
+                ) : null}
+
+                <h2 className="mb-6 text-center text-display text-2xl leading-snug sm:text-3xl">
+                  {currentQuestion.question}
+                </h2>
+
+                <AnswerPad
+                  options={currentQuestion.options}
+                  selectedAnswer={selectedAnswer}
+                  correctAnswer={questionResult?.correctAnswer}
+                  isRevealed={isRevealed}
+                  disabled={hasSubmitted || isRevealed}
+                  onSelect={handleAnswerSelect}
+                />
+
+                <div className="mt-6">
+                  {!hasSubmitted && !isRevealed ? (
+                    <GameButton
+                      fullWidth
+                      disabled={selectedAnswer === null}
+                      onClick={() => submitAnswer(selectedAnswer)}
+                    >
+                      Lock in answer
+                    </GameButton>
+                  ) : null}
+
+                  {hasSubmitted && !isRevealed ? (
+                    <div className="rounded-[var(--radius-tile)] border border-[var(--line)] bg-[var(--surface)] py-4 text-center font-semibold text-[var(--muted)]">
+                      Locked in — waiting for the reveal…
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </motion.div>
+          ) : null}
+
+          {/* LEADERBOARD / FINISHED */}
+          {(showLeaderboard || currentRoom.status === "finished") && (
+            <motion.div
+              key="board"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="panel p-5 sm:p-8"
+            >
+              {feedback && currentRoom.status !== "finished" ? (
+                <div className="mb-5">
+                  <FeedbackBanner kind={feedback} />
+                </div>
+              ) : null}
+
+              <Leaderboard
+                participants={participants}
+                currentUserId={user.id}
+                finished={currentRoom.status === "finished"}
+              />
+
+              {isHost &&
+              currentRoom.status === "in-progress" &&
+              isRevealed ? (
+                <div className="mt-6">
+                  <GameButton fullWidth variant="host" onClick={handleNextQuestion}>
+                    Next question →
+                  </GameButton>
+                </div>
+              ) : null}
+
+              {!isHost &&
+              currentRoom.status === "in-progress" &&
+              isRevealed ? (
+                <p className="mt-6 text-center text-sm font-semibold text-[var(--muted)]">
+                  Host is advancing to the next round…
+                </p>
+              ) : null}
+
+              {currentRoom.status === "finished" ? (
+                <div className="mt-6">
+                  <GameButton fullWidth onClick={handleBack}>
+                    Play again
+                  </GameButton>
+                </div>
+              ) : null}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
+    </ArenaShell>
   );
 }

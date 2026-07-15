@@ -1,3 +1,253 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  /* Arena stage */
+  --arena-ink: #071a17;
+  --arena-deep: #0c2e28;
+  --arena-mid: #134038;
+  --arena-fog: #1a5449;
+
+  /* Energy accents */
+  --pulse-lime: #c8f542;
+  --pulse-lime-dim: #9bc22e;
+  --pulse-coral: #ff5a36;
+  --pulse-amber: #ffb020;
+  --pulse-sky: #3ecfff;
+  --pulse-violet: #a78bfa;
+
+  /* Surfaces */
+  --surface: rgba(255, 255, 255, 0.08);
+  --surface-strong: rgba(255, 255, 255, 0.14);
+  --surface-solid: #f4f7f2;
+  --ink: #071a17;
+  --muted: rgba(244, 247, 242, 0.62);
+  --line: rgba(244, 247, 242, 0.16);
+
+  /* Answer pad colors (game-show distinct) */
+  --opt-a: #e11d48;
+  --opt-b: #0284c7;
+  --opt-c: #d97706;
+  --opt-d: #059669;
+
+  --radius-chip: 999px;
+  --radius-panel: 1.25rem;
+  --radius-tile: 1rem;
+  --shadow-pop: 0 12px 0 rgba(0, 0, 0, 0.35);
+  --shadow-press: 0 4px 0 rgba(0, 0, 0, 0.35);
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply text-[var(--surface-solid)] antialiased;
+    background: var(--arena-ink);
+    min-height: 100dvh;
+  }
+
+  ::selection {
+    background: var(--pulse-lime);
+    color: var(--arena-ink);
+  }
+}
+
+@layer components {
+  .arena-bg {
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(200, 245, 66, 0.18), transparent 55%),
+      radial-gradient(ellipse 60% 40% at 100% 100%, rgba(255, 90, 54, 0.16), transparent 50%),
+      radial-gradient(ellipse 50% 40% at 0% 80%, rgba(62, 207, 255, 0.12), transparent 45%),
+      linear-gradient(165deg, var(--arena-deep) 0%, var(--arena-ink) 45%, #051411 100%);
+  }
+
+  .arena-grid {
+    background-image:
+      linear-gradient(rgba(200, 245, 66, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(200, 245, 66, 0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black 20%, transparent 75%);
+  }
+
+  .panel {
+    @apply rounded-[var(--radius-panel)] border border-[var(--line)] backdrop-blur-md;
+    background: var(--surface);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  .panel-solid {
+    @apply rounded-[var(--radius-panel)];
+    background: var(--surface-solid);
+    color: var(--ink);
+    box-shadow: var(--shadow-pop);
+  }
+
+  .btn-game {
+    @apply relative inline-flex items-center justify-center gap-2 font-display font-bold tracking-wide
+      uppercase transition-all duration-150 select-none disabled:opacity-45 disabled:pointer-events-none;
+    border-radius: var(--radius-tile);
+    box-shadow: var(--shadow-pop);
+  }
+
+  .btn-game:hover:not(:disabled) {
+    transform: translateY(-2px);
+  }
+
+  .btn-game:active:not(:disabled) {
+    transform: translateY(6px);
+    box-shadow: var(--shadow-press);
+  }
+
+  .btn-primary {
+    @apply btn-game bg-[var(--pulse-lime)] text-[var(--arena-ink)] px-6 py-3.5 text-base;
+  }
+
+  .btn-secondary {
+    @apply btn-game bg-[var(--pulse-coral)] text-white px-6 py-3.5 text-base;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 font-semibold transition
+      rounded-[var(--radius-tile)] border border-[var(--line)] bg-[var(--surface)]
+      px-4 py-2.5 text-[var(--surface-solid)] hover:bg-[var(--surface-strong)];
+  }
+
+  .btn-host {
+    @apply btn-game bg-[var(--pulse-amber)] text-[var(--arena-ink)] px-8 py-4 text-lg;
+  }
+
+  .input-game {
+    @apply w-full rounded-[var(--radius-tile)] border-2 border-transparent bg-white/10
+      px-4 py-3.5 text-lg text-[var(--surface-solid)] placeholder:text-white/35
+      outline-none transition focus:border-[var(--pulse-lime)] focus:bg-white/15;
+  }
+
+  .input-game-light {
+    @apply w-full rounded-[var(--radius-tile)] border-2 bg-white px-4 py-3.5 text-lg outline-none transition;
+    border-color: rgba(7, 26, 23, 0.12);
+    color: var(--ink);
+  }
+
+  .input-game-light::placeholder {
+    color: rgba(7, 26, 23, 0.35);
+  }
+
+  .input-game-light:focus {
+    border-color: var(--arena-mid);
+  }
+
+  .chip {
+    @apply inline-flex items-center rounded-[var(--radius-chip)] px-2.5 py-0.5
+      text-xs font-bold uppercase tracking-wider;
+  }
+
+  .answer-tile {
+    @apply relative flex min-h-[5.5rem] items-center justify-center gap-3 overflow-hidden
+      rounded-[var(--radius-tile)] p-4 text-left text-lg font-bold text-white
+      transition-all duration-150 disabled:cursor-default;
+    box-shadow: 0 8px 0 rgba(0, 0, 0, 0.28);
+  }
+
+  .answer-tile:hover:not(:disabled):not([data-locked="true"]) {
+    transform: translateY(-2px);
+    filter: brightness(1.08);
+  }
+
+  .answer-tile:active:not(:disabled):not([data-locked="true"]) {
+    transform: translateY(4px);
+    box-shadow: 0 3px 0 rgba(0, 0, 0, 0.28);
+  }
+
+  .answer-tile[data-selected="true"] {
+    outline: 3px solid white;
+    outline-offset: 2px;
+    transform: scale(1.02);
+  }
+
+  .answer-tile[data-state="correct"] {
+    background: #059669 !important;
+    outline: 3px solid var(--pulse-lime);
+    outline-offset: 2px;
+    animation: pulse-win 0.6s ease;
+  }
+
+  .answer-tile[data-state="wrong"] {
+    background: #be123c !important;
+    opacity: 0.85;
+  }
+
+  .answer-tile[data-state="dim"] {
+    opacity: 0.4;
+    filter: grayscale(0.4);
+  }
+}
+
+@layer utilities {
+  .text-display {
+    @apply font-display font-extrabold tracking-tight;
+  }
+
+  .text-brand {
+    @apply font-display font-black tracking-tighter uppercase;
+  }
+}
+
+@keyframes pulse-win {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.04);
+  }
+}
+
+@keyframes float-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes countdown-urgency {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-float {
+  animation: float-soft 4s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float-soft 5s ease-in-out 0.8s infinite;
+}
+
+.animate-urgency {
+  animation: countdown-urgency 0.5s ease-in-out infinite;
+}

@@ -4,13 +4,13 @@ import clsx from "clsx";
 
 import ClientLayout from "./client-layout";
 
-import { fontSans } from "@/config/fonts";
+import { fontDisplay, fontSans } from "@/config/fonts";
 import { siteConfig } from "@/config/site";
 
 export const metadata: Metadata = {
   title: {
     default: siteConfig.name,
-    template: `%s - ${siteConfig.name}`,
+    template: `%s · ${siteConfig.name}`,
   },
   description: siteConfig.description,
   icons: {
@@ -19,10 +19,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "white" },
-    { media: "(prefers-color-scheme: dark)", color: "black" },
-  ],
+  themeColor: "#071a17",
 };
 
 export default function RootLayout({
@@ -32,11 +29,11 @@ export default function RootLayout({
 }) {
   return (
     <html suppressHydrationWarning lang="en">
-      <head />
       <body
         className={clsx(
-          "min-h-screen bg-background font-sans antialiased",
+          "min-h-dvh font-sans antialiased",
           fontSans.variable,
+          fontDisplay.variable,
         )}
       >
         <ClientLayout>{children}</ClientLayout>

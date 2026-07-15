@@ -13,8 +13,8 @@ export default function ClientLayout({
     <UserProvider>
       <WebSocketProvider>
         <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
-          <div className="relative flex flex-col min-h-screen w-screen">
-            <main className="flex-grow w-full">{children}</main>
+          <div className="relative flex min-h-dvh w-full flex-col">
+            {children}
           </div>
         </Providers>
       </WebSocketProvider>
