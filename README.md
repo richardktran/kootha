@@ -2,16 +2,51 @@
 
 Realtime multiplayer quiz platform built as a Go microservice stack with a Next.js frontend.
 
+Kootha is a **simple Kahoot-inspired clone** made for learning — a hands-on way to explore microservices, gRPC, Kafka, Redis, and WebSockets. It is not a production Kahoot replacement.
+
 Players create or join rooms, answer questions in sync, and see live rankings over WebSockets.
+
+<p align="center">
+  <img src=".readme/login.png" alt="Kootha — enter the arena" width="720" />
+</p>
+
+## Screenshots
+
+| Enter name | Join or host |
+|:---:|:---:|
+| <img src=".readme/login.png" alt="Enter display name" width="400" /> | <img src=".readme/join-host-room.png" alt="Join or host a room" width="400" /> |
+
+| Join with code | Lobby |
+|:---:|:---:|
+| <img src=".readme/join-room.png" alt="Join room with code" width="400" /> | <img src=".readme/lobby.png" alt="Quiz lobby" width="400" /> |
+
+| Live quiz | Final results |
+|:---:|:---:|
+| <img src=".readme/quiz-answer.png" alt="Answering a quiz question" width="400" /> | <img src=".readme/leaderboard.png" alt="Final leaderboard" width="400" /> |
 
 ## Architecture
 
-```
-Web ──REST──► API Gateway (:8080) ──gRPC──► User / QuizSession / … (via Consul)
-Web ──WS────► Notification (:8086) ──gRPC──► QuizSession
-QuizSession ──► QuizBank, Redis, Kafka
-Leaderboard ──► Kafka (answer-submitted) → Redis leaderboard → ranking-updated
-Notification ──► Kafka events → Redis Pub/Sub → WS broadcast
+```mermaid
+flowchart TB
+  Client[Web Client] --> LB[Load Balancer]
+  LB --> Gateway[API Gateway]
+  LB --> NotifLB[WS Load Balancer]
+  NotifLB --> Notification[NotificationService]
+  Gateway --> UserSvc[UserService]
+  Gateway --> QuizSession[QuizSessionService]
+  Gateway --> IDGen[IDGenerationService]
+  QuizSession --> IDGen
+  QuizSession --> QuizBank[QuizBankService]
+  QuizSession --> Kafka[Kafka]
+  QuizBank --> BankCache[Redis Bank Cache]
+  QuizBank --> BankDB[(Quiz Bank DB)]
+  QuizSession --> SessionCache[Redis Session Cache]
+  QuizSession --> SessionDB[(Quiz Session DB)]
+  Kafka --> Consumers[Consumers]
+  Consumers --> Notification
+  Consumers --> Leaderboard[LeaderboardService]
+  Leaderboard --> Kafka
+  Leaderboard --> SessionDB
 ```
 
 | Component | Role |
