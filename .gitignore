@@ -24,3 +24,5 @@ postgres_db/
 
 .run/
 
+bin/
+
