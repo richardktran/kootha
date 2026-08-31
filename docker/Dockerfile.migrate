@@ -1,0 +1,7 @@
+FROM migrate/migrate:v4.18.1
+
+COPY quiz-session-service/internal/database/migrations /migrations/quiz-session
+COPY quiz-bank-service/internal/database/migrations /migrations/quiz-bank
+COPY docker/migrate.sh /migrate.sh
+
+ENTRYPOINT ["/bin/sh", "/migrate.sh"]

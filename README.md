@@ -65,12 +65,16 @@ flowchart TB
 | Tool | Notes |
 |------|--------|
 | [Go](https://go.dev/dl/) 1.22+ | Backend |
-| [Docker](https://docs.docker.com/get-docker/) | Redis, Postgres, Kafka, Consul |
-| [migrate](https://github.com/golang-migrate/migrate) CLI | DB migrations (`migrate` on `PATH`) |
-| [Bun](https://bun.sh/) (or Node/npm) | Frontend |
+| [Docker](https://docs.docker.com/get-docker/) | Redis, Postgres, Kafka, Consul (local) or image builds (K8s) |
+| [migrate](https://github.com/golang-migrate/migrate) CLI | DB migrations for local `make start` |
+| [Bun](https://bun.sh/) (or Node/npm) | Frontend (local) |
 | `protoc`, `protoc-gen-go`, `protoc-gen-go-grpc` | Only needed to regenerate APIs |
 
+**Kubernetes (optional):** [Minikube](https://minikube.sigs.k8s.io/) v1.30+, [kubectl](https://kubernetes.io/docs/tasks/tools/) v1.27+
+
 ## Quick start
+
+### Local (Makefile)
 
 ```bash
 # 1. Infrastructure (Consul, Redis, Postgres, Kafka) + migrations + all Go services
@@ -85,9 +89,37 @@ Open [http://localhost:3000](http://localhost:3000).
 
 Stop Go services with `make stop`, or tear everything down (services + Docker) with `make down`.
 
+### Kubernetes (Minikube)
+
+Same flow as a production-style cluster deploy: build images into Minikube, then apply manifests.
+
+```bash
+minikube start --memory=8192 --cpus=4
+
+make k8s-up          # docker build + kubectl apply
+# other terminal:
+minikube tunnel      # LoadBalancer services on localhost
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+```bash
+make k8s-status      # pods / services / jobs
+make k8s-logs svc=api-gateway
+make k8s-down        # delete the kootha namespace
+```
+
+If `minikube tunnel` is not running, port-forward instead:
+
+```bash
+kubectl port-forward -n kootha svc/web 3000:3000
+kubectl port-forward -n kootha svc/api-gateway 8080:8080
+kubectl port-forward -n kootha svc/notification-service 8086:8086
+```
+
 ```bash
 make help    # list all targets
-make status  # infra containers + listening ports
+make status  # local infra containers + listening ports
 ```
 
 ## Makefile targets
@@ -107,8 +139,13 @@ make status  # infra containers + listening ports
 | `make protoc` | Regenerate gRPC stubs from `api/*.proto` |
 | `make status` | Show container and port status |
 | `make clean` | Stop services and remove build artifacts |
+| `make k8s-up` | Build images into Minikube and deploy the full stack |
+| `make k8s-build` | Build Docker images into the Minikube daemon |
+| `make k8s-deploy` | Apply `k8s/dev` manifests (infra → migrate → services) |
+| `make k8s-status` | Show pods, services, and jobs |
+| `make k8s-down` | Delete the `kootha` namespace |
 
-Run a single service: `make run-api-gateway`, `make run-quiz-session`, etc.
+Run a single service locally: `make run-api-gateway`, `make run-quiz-session`, etc.
 
 ## Ports
 
@@ -141,12 +178,33 @@ Run a single service: `make run-api-gateway`, `make run-quiz-session`, etc.
 ├── notification-service/
 ├── leaderboard-service/
 ├── pkg/                      # Shared libraries (Kafka, Consul, Redis, …)
-├── docker/                   # Infra & Kafka Compose files
+├── docker/                   # Infra Compose files + service Dockerfiles
+├── k8s/dev/                  # Kubernetes manifests (Minikube / local cluster)
+├── scripts/                  # build.sh / deploy.sh for Minikube
 ├── cmd/                      # Dev utilities (e.g. create-kafka-topics)
 ├── gen/                      # Generated protobuf / gRPC code
 ├── web/                      # Next.js frontend
 └── Makefile
 ```
+
+## Kubernetes
+
+Manifests live under `k8s/dev/` and match a production-shaped layout: namespace, ConfigMap, Secrets, StatefulSets for Postgres/Kafka, Deployments + Services for apps, and Jobs for migrations and Kafka topics.
+
+In-cluster service discovery uses Kubernetes DNS (`DISCOVERY_BACKEND=k8s`) instead of Consul. Local `make start` still uses Consul.
+
+| Resource | Role |
+|----------|------|
+| `web` LoadBalancer `:3000` | Next.js UI |
+| `api-gateway` LoadBalancer `:8080` | REST API |
+| `notification-service` LoadBalancer `:8086` | WebSocket `/ws` |
+| ClusterIP services | gRPC backends |
+| `migrate` Job | quiz_session + quiz_bank schema |
+| `kafka-topics` Job | creates quiz Kafka topics |
+
+Images are tagged `kootha/<service>:latest` and loaded into Minikube via `eval $(minikube docker-env)` (see `scripts/build.sh`).
+
+Dev database credentials are in `k8s/dev/secrets.yaml`. Change them before using a shared cluster.
 
 ## Development
 

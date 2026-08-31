@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/richardktran/realtime-quiz/pkg/message-broker/kafka"
 	"github.com/richardktran/realtime-quiz/pkg/topics"
@@ -20,8 +21,15 @@ func main() {
 		topics.QuizCompleted,
 	}
 
-	if err := kafka.EnsureTopics(allTopics, 1, 1); err != nil {
-		log.Fatalf("ensure topics: %v", err)
+	var last error
+	for i := 1; i <= 30; i++ {
+		last = kafka.EnsureTopics(allTopics, 1, 1)
+		if last == nil {
+			log.Println("Kafka topics ready")
+			return
+		}
+		log.Printf("ensure topics (attempt %d/30): %v", i, last)
+		time.Sleep(2 * time.Second)
 	}
-	log.Println("Kafka topics ready")
+	log.Fatalf("ensure topics: %v", last)
 }

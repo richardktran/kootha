@@ -5,19 +5,19 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"os"
-	"time"
 
 	"github.com/richardktran/realtime-quiz/gen"
+	"github.com/richardktran/realtime-quiz/pkg/config"
 	"github.com/richardktran/realtime-quiz/pkg/discovery"
-	"github.com/richardktran/realtime-quiz/pkg/discovery/consul"
+	"github.com/richardktran/realtime-quiz/pkg/env"
+	"github.com/richardktran/realtime-quiz/pkg/health"
+	"github.com/richardktran/realtime-quiz/pkg/registry"
 	idGenerationGateway "github.com/richardktran/realtime-quiz/user-service/internal/gateway/idgeneration/grpc"
 	grpcHandler "github.com/richardktran/realtime-quiz/user-service/internal/handler/grpc"
 	"github.com/richardktran/realtime-quiz/user-service/internal/repository/postgres"
 	"github.com/richardktran/realtime-quiz/user-service/internal/service/user"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
-	"gopkg.in/yaml.v3"
 )
 
 const serviceName = "user-service"
@@ -40,50 +40,34 @@ type dbConfig struct {
 }
 
 func main() {
-	f, err := os.Open("user-service/configs/base.yaml")
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-
 	var cfg serviceConfig
-	if err := yaml.NewDecoder(f).Decode(&cfg); err != nil {
+	if err := config.LoadYAML("user-service/configs/base.yaml", &cfg); err != nil {
 		panic(err)
 	}
 
-	port := cfg.APIConfig.Port
+	port := env.OverlayString(fmt.Sprint(cfg.APIConfig.Port), "API_PORT")
 	log.Printf("Starting the %s service with port %v...", serviceName, port)
 
-	registry, err := consul.NewRegistry("localhost:8500")
+	reg, err := registry.New()
 	if err != nil {
 		panic(err)
 	}
 
 	ctx := context.Background()
-	instanceId := discovery.GenerateInstanceID(serviceName)
-
-	if err := registry.Register(ctx, instanceId, serviceName, fmt.Sprintf("localhost:%v", port)); err != nil {
+	stop, err := discovery.StartHeartbeat(ctx, reg, serviceName, discovery.AdvertiseAddr(port))
+	if err != nil {
 		panic(err)
 	}
+	defer stop()
 
-	go func() {
-		for {
-			if err := registry.ReportHealthyState(instanceId, serviceName); err != nil {
-				log.Printf("Failed to report healthy state: %v", err)
-			}
-			time.Sleep(5 * time.Second)
-		}
-	}()
-	defer registry.Deregister(ctx, instanceId)
-
-	idGenGW := idGenerationGateway.New(registry)
+	idGenGW := idGenerationGateway.New(reg)
 
 	repo, err := postgres.New(postgres.Config{
-		Host:     cfg.DBConfig.Host,
-		Port:     cfg.DBConfig.Port,
-		User:     cfg.DBConfig.User,
-		Password: cfg.DBConfig.Password,
-		DBName:   cfg.DBConfig.DBName,
+		Host:     env.OverlayString(cfg.DBConfig.Host, "DB_HOST"),
+		Port:     env.OverlayString(fmt.Sprint(cfg.DBConfig.Port), "DB_PORT"),
+		User:     env.OverlayString(cfg.DBConfig.User, "DB_USER"),
+		Password: env.OverlayString(cfg.DBConfig.Password, "DB_PASSWORD"),
+		DBName:   env.OverlayString(cfg.DBConfig.DBName, "DB_NAME"),
 	})
 	if err != nil {
 		panic(err)
@@ -98,6 +82,7 @@ func main() {
 	}
 
 	server := grpc.NewServer()
+	health.RegisterGRPC(server)
 	reflection.Register(server)
 	gen.RegisterUserServiceServer(server, h)
 

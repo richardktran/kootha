@@ -8,8 +8,9 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/richardktran/realtime-quiz/gen"
-	quizsessionGW "github.com/richardktran/realtime-quiz/notification-service/internal/gateway/quizsession"
 	"github.com/richardktran/realtime-quiz/notification-service/internal/fanout"
+	quizsessionGW "github.com/richardktran/realtime-quiz/notification-service/internal/gateway/quizsession"
+	"github.com/richardktran/realtime-quiz/pkg/cors"
 )
 
 type Server struct {
@@ -39,8 +40,7 @@ func NewServer(hub *Hub, quizGW *quizsessionGW.Gateway, fanout *fanout.Publisher
 	return &Server{
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
-				origin := r.Header.Get("Origin")
-				return origin == "http://localhost:3000" || origin == "http://127.0.0.1:3000"
+				return cors.OriginAllowed(r.Header.Get("Origin"))
 			},
 			ReadBufferSize:    8192,
 			WriteBufferSize:   8192,
@@ -54,7 +54,10 @@ func NewServer(hub *Hub, quizGW *quizsessionGW.Gateway, fanout *fanout.Publisher
 }
 
 func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+	origin := r.Header.Get("Origin")
+	if cors.OriginAllowed(origin) && origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+	}
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 	conn, err := s.upgrader.Upgrade(w, r, nil)

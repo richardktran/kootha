@@ -4,13 +4,16 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
+	"strconv"
 
 	"github.com/richardktran/realtime-quiz/api-gateway/internal/gateway/quizsession"
 	userGateway "github.com/richardktran/realtime-quiz/api-gateway/internal/gateway/user"
 	httpHandler "github.com/richardktran/realtime-quiz/api-gateway/internal/handler/http"
-	"github.com/richardktran/realtime-quiz/pkg/discovery/consul"
-	"gopkg.in/yaml.v3"
+	"github.com/richardktran/realtime-quiz/pkg/config"
+	"github.com/richardktran/realtime-quiz/pkg/cors"
+	"github.com/richardktran/realtime-quiz/pkg/env"
+	"github.com/richardktran/realtime-quiz/pkg/health"
+	"github.com/richardktran/realtime-quiz/pkg/registry"
 )
 
 const serviceName = "api-gateway"
@@ -23,50 +26,28 @@ type apiConfig struct {
 	Port int `yaml:"port"`
 }
 
-func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-		w.Header().Set("Access-Control-Max-Age", "3600")
-
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
 func main() {
-	f, err := os.Open("api-gateway/configs/base.yaml")
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-
 	var cfg serviceConfig
-	if err := yaml.NewDecoder(f).Decode(&cfg); err != nil {
+	if err := config.LoadYAML("api-gateway/configs/base.yaml", &cfg); err != nil {
 		panic(err)
 	}
 
-	port := cfg.APIConfig.Port
+	port := env.OverlayInt(cfg.APIConfig.Port, "API_PORT")
 	log.Printf("Starting the %s on port %v...", serviceName, port)
 
-	registry, err := consul.NewRegistry("localhost:8500")
+	reg, err := registry.New()
 	if err != nil {
 		panic(err)
 	}
 
-	userGW := userGateway.New(registry)
-	quizSessionGW := quizsession.New(registry)
+	userGW := userGateway.New(reg)
+	quizSessionGW := quizsession.New(reg)
 
 	userHandler := httpHandler.NewUserHandler(userGW)
 	roomHandler := httpHandler.NewRoomHandler(quizSessionGW)
 
 	mux := http.NewServeMux()
+	health.MountHTTP(mux)
 
 	mux.HandleFunc("/api/users", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -90,9 +71,9 @@ func main() {
 
 	mux.HandleFunc("/api/rooms/join", roomHandler.JoinRoom)
 
-	addr := fmt.Sprintf(":%v", port)
+	addr := fmt.Sprintf(":%s", strconv.Itoa(port))
 	log.Printf("Listening on %s", addr)
-	if err := http.ListenAndServe(addr, corsMiddleware(mux)); err != nil {
+	if err := http.ListenAndServe(addr, cors.Middleware(mux)); err != nil {
 		log.Fatalf("Failed to start HTTP server: %v", err)
 	}
 }

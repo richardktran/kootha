@@ -2,9 +2,11 @@
 # Kootha — Realtime Quiz Platform
 # =============================================================================
 # Usage:  make help
-# Quick:  make start   → infra + migrate + all services
-#         make stop    → stop Go services
-#         make down    → stop services + infrastructure
+# Quick:  make start     → local infra + migrate + all services
+#         make k8s-up    → Docker images + deploy to Minikube
+#         make stop      → stop Go services
+#         make down      → stop services + infrastructure
+#         make k8s-down  → delete the Kubernetes namespace
 # =============================================================================
 
 .DEFAULT_GOAL := help
@@ -64,7 +66,8 @@ RESET := \033[0m
 	run-quiz-bank run-quiz-session run-notification run-leaderboard \
 	run-session-created-consumer run-user-joined-consumer \
 	web web-install \
-	status clean
+	status clean \
+	k8s-build k8s-deploy k8s-up k8s-down k8s-status k8s-logs deploy
 
 # =============================================================================
 # Help
@@ -287,6 +290,33 @@ web-install: ## Install frontend dependencies (Bun)
 
 web: ## Start Next.js dev server
 	@cd web && bun run dev
+
+##@ Kubernetes (Minikube)
+
+k8s-build: ## Build Docker images into the Minikube daemon
+	@chmod +x scripts/build.sh scripts/deploy.sh
+	@./scripts/build.sh
+
+k8s-deploy: ## Apply k8s/dev manifests (infra → migrate → services)
+	@chmod +x scripts/deploy.sh
+	@./scripts/deploy.sh
+
+k8s-up: k8s-build k8s-deploy ## Build images and deploy the full stack to Kubernetes
+
+deploy: k8s-deploy ## Alias for k8s-deploy (same as uber-clone)
+
+k8s-down: ## Delete the kootha namespace and all cluster resources
+	@echo "Deleting namespace kootha..."
+	@kubectl delete namespace kootha --ignore-not-found
+	@echo "$(GREEN)Kubernetes resources removed.$(RESET)"
+
+k8s-status: ## Show pods, services, and jobs in the kootha namespace
+	@echo "$(BOLD)Namespace: kootha$(RESET)"
+	@kubectl get pods,svc,jobs,deploy,statefulset -n kootha 2>/dev/null || echo "Namespace not found. Run make k8s-up"
+
+k8s-logs: ## Tail logs for a service: make k8s-logs svc=api-gateway
+	@test -n "$(svc)" || (echo "Usage: make k8s-logs svc=<deployment>"; exit 1)
+	@kubectl logs -n kootha -l app=$(svc) -f --tail=100
 
 ##@ Utilities
 

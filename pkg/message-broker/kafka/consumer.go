@@ -16,7 +16,7 @@ type Consumer struct {
 // NewConsumerGroup creates a new Kafka consumer group.
 func NewConsumerGroup(groupId string) (*Consumer, error) {
 	c, err := kafka.NewConsumer(&kafka.ConfigMap{
-		"bootstrap.servers": "localhost:9092",
+		"bootstrap.servers": brokers(),
 		"group.id":          groupId,
 		"auto.offset.reset": "earliest",
 	})
@@ -92,7 +92,7 @@ func (c *Consumer) Close() {
 // EnsureTopics creates topics if they do not already exist.
 func EnsureTopics(topics []string, numPartitions int, replicationFactor int) error {
 	admin, err := kafka.NewAdminClient(&kafka.ConfigMap{
-		"bootstrap.servers": "localhost:9092",
+		"bootstrap.servers": brokers(),
 	})
 	if err != nil {
 		return err

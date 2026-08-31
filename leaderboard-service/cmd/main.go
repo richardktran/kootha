@@ -6,12 +6,14 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/richardktran/realtime-quiz/leaderboard-service/internal/consumer"
 	"github.com/richardktran/realtime-quiz/leaderboard-service/internal/service/leaderboard"
 	"github.com/richardktran/realtime-quiz/pkg/cache/redis"
+	"github.com/richardktran/realtime-quiz/pkg/config"
+	"github.com/richardktran/realtime-quiz/pkg/env"
 	"github.com/richardktran/realtime-quiz/pkg/message-broker/kafka"
-	"gopkg.in/yaml.v3"
 )
 
 type serviceConfig struct {
@@ -29,7 +31,7 @@ func main() {
 	defer cancel()
 
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
 		<-sigChan
@@ -37,18 +39,16 @@ func main() {
 		cancel()
 	}()
 
-	f, err := os.Open("leaderboard-service/configs/base.yaml")
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-
 	var cfg serviceConfig
-	if err := yaml.NewDecoder(f).Decode(&cfg); err != nil {
+	if err := config.LoadYAML("leaderboard-service/configs/base.yaml", &cfg); err != nil {
 		panic(err)
 	}
 
-	redisClient, err := redis.New(cfg.Redis.Addr)
+	redisAddr := env.OverlayString(cfg.Redis.Addr, "REDIS_ADDR")
+	if redisAddr == "" {
+		redisAddr = "localhost:6379"
+	}
+	redisClient, err := redis.New(redisAddr)
 	if err != nil {
 		panic(err)
 	}

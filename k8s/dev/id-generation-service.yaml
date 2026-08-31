@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: id-generation-service
+  namespace: kootha
+  labels:
+    app: id-generation-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: id-generation-service
+  template:
+    metadata:
+      labels:
+        app: id-generation-service
+    spec:
+      containers:
+        - name: id-generation-service
+          image: kootha/id-generation-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8083
+              name: grpc
+          envFrom:
+            - configMapRef:
+                name: kootha-config
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          readinessProbe:
+            grpc:
+              port: 8083
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            grpc:
+              port: 8083
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: id-generation-service
+  namespace: kootha
+spec:
+  selector:
+    app: id-generation-service
+  ports:
+    - port: 8083
+      targetPort: 8083
+      name: grpc

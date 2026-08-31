@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kootha
+  labels:
+    app: kootha
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kootha-config
+  namespace: kootha
+data:
+  environment: "development"
+  DISCOVERY_BACKEND: "k8s"
+  KAFKA_BROKERS: "apache-kafka.kootha.svc.cluster.local:9092"
+  REDIS_ADDR: "redis:6379"
+  DB_HOST: "postgres"
+  DB_PORT: "5432"
+  CORS_ORIGIN: "http://localhost:3000,http://127.0.0.1:3000"
+  APP_URL: "http://localhost:3000"
+  API_URL: "http://localhost:8080"
+  WS_URL: "ws://localhost:8086/ws"

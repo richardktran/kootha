@@ -7,13 +7,15 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"syscall"
 
+	"github.com/richardktran/realtime-quiz/pkg/config"
+	"github.com/richardktran/realtime-quiz/pkg/env"
 	"github.com/richardktran/realtime-quiz/pkg/message-broker/kafka"
 	"github.com/richardktran/realtime-quiz/pkg/topics"
 	"github.com/richardktran/realtime-quiz/quiz-session-service/internal/repository/postgres"
 	"github.com/richardktran/realtime-quiz/quiz-session-service/internal/workers"
 	"github.com/richardktran/realtime-quiz/quiz-session-service/pkg/model"
-	"gopkg.in/yaml.v3"
 )
 
 var groupId = "session-created"
@@ -36,7 +38,7 @@ func main() {
 	defer cancel()
 
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
 		<-sigChan
@@ -44,36 +46,23 @@ func main() {
 		cancel()
 	}()
 
-	f, err := os.Open("quiz-session-service/configs/base.yaml")
-
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-
 	var cfg serviceConfig
-
-	if err := yaml.NewDecoder(f).Decode(&cfg); err != nil {
+	if err := config.LoadYAML("quiz-session-service/configs/base.yaml", &cfg); err != nil {
 		panic(err)
 	}
 
 	consumer, err := kafka.NewConsumerGroup(groupId)
-	topics := []string{
-		topics.QuizSessionCreated,
-	}
-
 	if err != nil {
 		panic(err)
 	}
 
 	repo, err := postgres.New(postgres.Config{
-		Host:     cfg.DBConfig.Host,
-		Port:     cfg.DBConfig.Port,
-		User:     cfg.DBConfig.User,
-		Password: cfg.DBConfig.Password,
-		DBName:   cfg.DBConfig.DBName,
+		Host:     env.OverlayString(cfg.DBConfig.Host, "DB_HOST"),
+		Port:     env.OverlayString(fmt.Sprint(cfg.DBConfig.Port), "DB_PORT"),
+		User:     env.OverlayString(cfg.DBConfig.User, "DB_USER"),
+		Password: env.OverlayString(cfg.DBConfig.Password, "DB_PASSWORD"),
+		DBName:   env.OverlayString(cfg.DBConfig.DBName, "DB_NAME"),
 	})
-
 	if err != nil {
 		panic(err)
 	}
@@ -107,7 +96,7 @@ func main() {
 
 	fmt.Println("Start consume...")
 
-	if err := consumer.Consume(ctx, topics, handler); err != nil {
+	if err := consumer.Consume(ctx, []string{topics.QuizSessionCreated}, handler); err != nil {
 		log.Fatalf("Error while consuming messages: %v", err)
 	}
 

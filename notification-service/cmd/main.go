@@ -7,18 +7,21 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"time"
+	"syscall"
 
 	"github.com/richardktran/realtime-quiz/notification-service/internal/consumer"
 	"github.com/richardktran/realtime-quiz/notification-service/internal/fanout"
 	quizsessionGW "github.com/richardktran/realtime-quiz/notification-service/internal/gateway/quizsession"
 	"github.com/richardktran/realtime-quiz/notification-service/internal/ws"
 	redisclient "github.com/richardktran/realtime-quiz/pkg/cache/redis"
+	"github.com/richardktran/realtime-quiz/pkg/config"
+	"github.com/richardktran/realtime-quiz/pkg/cors"
 	"github.com/richardktran/realtime-quiz/pkg/discovery"
-	"github.com/richardktran/realtime-quiz/pkg/discovery/consul"
+	"github.com/richardktran/realtime-quiz/pkg/env"
+	"github.com/richardktran/realtime-quiz/pkg/health"
 	"github.com/richardktran/realtime-quiz/pkg/message-broker/kafka"
+	"github.com/richardktran/realtime-quiz/pkg/registry"
 	"github.com/richardktran/realtime-quiz/pkg/topics"
-	"gopkg.in/yaml.v3"
 )
 
 const serviceName = "notification"
@@ -36,75 +39,42 @@ type redisConfig struct {
 	Addr string `yaml:"addr"`
 }
 
-func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Upgrade, Connection")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-		w.Header().Set("Access-Control-Max-Age", "3600")
-
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		if r.Header.Get("Upgrade") == "websocket" {
-			w.Header().Set("Upgrade", "websocket")
-			w.Header().Set("Connection", "Upgrade")
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
 func main() {
-	f, err := os.Open("notification-service/configs/base.yaml")
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-
 	var cfg serviceConfig
-	if err := yaml.NewDecoder(f).Decode(&cfg); err != nil {
+	if err := config.LoadYAML("notification-service/configs/base.yaml", &cfg); err != nil {
 		panic(err)
 	}
 
-	port := cfg.APIConfig.Port
+	port := env.OverlayString(fmt.Sprint(cfg.APIConfig.Port), "API_PORT")
 	log.Printf("starting %s service on port %s...", serviceName, port)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-sigChan
 		log.Println("received interrupt signal, shutting down...")
 		cancel()
 	}()
 
-	registry, err := consul.NewRegistry("localhost:8500")
+	reg, err := registry.New()
 	if err != nil {
 		panic(err)
 	}
 
-	instanceID := discovery.GenerateInstanceID(serviceName)
-	if err := registry.Register(ctx, instanceID, serviceName, fmt.Sprintf("localhost:%s", port)); err != nil {
+	stop, err := discovery.StartHeartbeat(ctx, reg, serviceName, discovery.AdvertiseAddr(port))
+	if err != nil {
 		panic(err)
 	}
-	defer registry.Deregister(ctx, instanceID)
+	defer stop()
 
-	go func() {
-		for {
-			if err := registry.ReportHealthyState(instanceID, serviceName); err != nil {
-				log.Printf("failed to report healthy state: %v", err)
-			}
-			time.Sleep(5 * time.Second)
-		}
-	}()
-
-	redis, err := redisclient.New(cfg.RedisConfig.Addr)
+	redisAddr := env.OverlayString(cfg.RedisConfig.Addr, "REDIS_ADDR")
+	if redisAddr == "" {
+		redisAddr = "localhost:6379"
+	}
+	redis, err := redisclient.New(redisAddr)
 	if err != nil {
 		panic(err)
 	}
@@ -112,7 +82,7 @@ func main() {
 
 	hub := ws.NewHub(redis)
 	fanoutPublisher := fanout.NewPublisher(redis)
-	quizGW := quizsessionGW.New(registry)
+	quizGW := quizsessionGW.New(reg)
 	wsServer := ws.NewServer(hub, quizGW, fanoutPublisher)
 
 	kafkaTopics := []string{
@@ -143,11 +113,12 @@ func main() {
 	go redisSubscriber.Start(ctx)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/ws", corsMiddleware(http.HandlerFunc(wsServer.HandleWebSocket)).ServeHTTP)
+	health.MountHTTP(mux)
+	mux.HandleFunc("/ws", wsServer.HandleWebSocket)
 
 	addr := fmt.Sprintf(":%s", port)
 	log.Printf("WebSocket server listening on %s/ws", addr)
-	if err := http.ListenAndServe(addr, corsMiddleware(mux)); err != nil {
+	if err := http.ListenAndServe(addr, cors.Middleware(mux)); err != nil {
 		log.Fatalf("failed to start HTTP server: %v", err)
 	}
 }

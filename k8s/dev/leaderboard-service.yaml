@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: leaderboard-service
+  namespace: kootha
+  labels:
+    app: leaderboard-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: leaderboard-service
+  template:
+    metadata:
+      labels:
+        app: leaderboard-service
+    spec:
+      initContainers:
+        - name: wait-deps
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - until nc -z redis 6379 && nc -z apache-kafka 9092; do echo waiting; sleep 2; done
+      containers:
+        - name: leaderboard-service
+          image: kootha/leaderboard-service:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: kootha-config
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
